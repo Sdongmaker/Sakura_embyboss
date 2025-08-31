@@ -10,6 +10,7 @@ from bot.func_helper.filters import user_in_group_on_filter
 from bot.sql_helper.sql_emby import sql_get_emby
 from bot.func_helper.fix_bottons import cr_page_server
 from bot.func_helper.msg_utils import callAnswer, editMessage
+from bot.func_helper.smart_player import generate_player_link
 
 
 @bot.on_callback_query(filters.regex('server') & user_in_group_on_filter)
@@ -45,11 +46,14 @@ async def server(_, call):
         online = emby.get_current_playing_count()
     except:
         online = 'Emby服务器断连 ·0'
+    hills_link = generate_player_link("hills", data.name, pwd)
+    senplayer_link = generate_player_link("senplayer", data.name, pwd)
+     
     text = f'**▎↓目前线路 & 用户密码：**`{pwd}`\n' \
            f'{line}\n\n' \
            f'{server_info}' \
            f'· 🎬 在线 | **{online}** 人\n\n' \
            f'**· 🌏 [{(datetime.now(timezone(timedelta(hours=8)))).strftime("%Y-%m-%d %H:%M:%S")}]**\n\n' \
-           f'senplayer://importserver?type=emby&name=起点影视&note=高清影视服务器&address=http://38.246.112.104:8095&username={data.name}&password={pwd}&address1name=备用线路1&address1=http://backup1.example.com:8095' \
-           f'[hills](https://gocy.pages.dev/#hills://import?type=emby&scheme=http&host=38.246.112.104&port=8095&username={data.name}&password={pwd})'
+           f'快速填充：\n\n[Senplayer](https://gocy.pages.dev/#{senplayer_link})\n' \
+           f'[hills](https://gocy.pages.dev/#{hills_link})'
     await editMessage(call, text, buttons=keyboard)
