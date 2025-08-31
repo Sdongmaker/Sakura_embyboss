@@ -96,7 +96,7 @@ class Embyservice(metaclass=Singleton):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Edg/114.0.1823.82'
         }
 
-    async def emby_create(self, name, us: int):
+    async def emby_create(self, name, us: int,embypasswd):
         """
         创建账户
         :param name: emby_name
@@ -111,7 +111,8 @@ class Embyservice(metaclass=Singleton):
         if new_user.status_code == 200 or new_user.status_code == 204:
             try:
                 id = new_user.json()["Id"]
-                pwd = await pwd_create(8)
+                #pwd = await pwd_create(8)
+                pwd = embypasswd
                 pwd_data = pwd_policy(id, new=pwd)
                 _pwd = r.post(f'{self.url}/emby/Users/{id}/Password',
                               headers=self.headers,

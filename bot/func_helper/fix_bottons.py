@@ -23,14 +23,24 @@ def judge_start_ikb(is_admin: bool, account: bool) -> InlineKeyboardMarkup:
         d.append(['👑 创建账户', 'create'])
         d.append(['⭕ 换绑TG', 'changetg'])
         d.append(['🔍 绑定TG', 'bindtg'])
+        d.append(['💰 购买注册码/续费码', 'https://shop.startednow.org/', 'url'])
+        d.append(['📚 上车指南', 'https://sdongmaker.github.io/', 'url'])
         # 如果邀请等级为d （未注册用户也能使用），则显示兑换商店
         if _open.invite_lv == 'd':
             d.append(['🏪 兑换商店', 'storeall'])
     else:
         d = [['️👥 用户功能', 'members'], ['🌐 服务器', 'server']]
         if schedall.check_ex: d.append(['🎟️ 使用续期码', 'exchange'])
+        # 不要直接添加到d中，先保存
+        d.append(['📚 问题解决', 'https://sdongmaker.github.io/', 'url'])
+        shop_button = ['💰 购买注册码/续费码', 'https://shop.startednow.org/', 'url']
+
     if _open.checkin: d.append([f'🎯 签到', 'checkin'])
     lines = array_chunk(d, 2)
+
+    # 单独添加购买按钮作为一行
+    lines.append([shop_button])
+
     if is_admin: lines.append([['👮🏻‍♂️ admin', 'manage']])
     keyword = ikb(lines)
     return keyword
@@ -41,7 +51,7 @@ group_f = ikb([[('点击我(●ˇ∀ˇ●)', f't.me/{bot_name}', 'url')]])
 # un in group
 judge_group_ikb = ikb([[('🌟 频道入口 ', f't.me/{chanel}', 'url'),
                         ('💫 群组入口', f't.me/{main_group}', 'url')],
-                       [('❌ 关闭消息', 'closeit')]])
+                       [('💰 购买注册码/续费码', 'https://shop.startednow.org/', 'url')]])
 
 """members ↓"""
 
@@ -56,7 +66,7 @@ def members_ikb(is_admin: bool = False, account: bool = False) -> InlineKeyboard
                     [('💖 我的收藏', 'my_favorites'),('💠 我的设备', 'my_devices')],
                     ]
         if moviepilot.status:
-            normal.append([('🍿 点播中心', 'download_center')])
+            normal.append([('🍿 点播中心', 'https://create.startednow.org/', 'url')])
         normal.append([('♻️ 主界面', 'back_start')])
         return ikb(normal)
     else:
@@ -244,7 +254,6 @@ async def store_query_page(total_page: int, current_page: int) -> InlineKeyboard
             followUp.append(next)
     keyboard.row(*followUp)
     return keyboard
-
 async def whitelist_page_ikb(total_page: int, current_page: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboard()
     keyboard.paginate(total_page, current_page, 'whitelist:{number}')

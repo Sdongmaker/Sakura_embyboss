@@ -40,6 +40,7 @@ async def my_info(_, msg):
 @bot.on_message(filters.command('count', prefixes) & user_in_group_on_filter & filters.private)
 async def count_info(_, msg):
     await deleteMessage(msg)
+    #设置一定时间后删除
     text = Embyservice.get_medias_count()
     await sendMessage(msg, text, timer=60)
 
@@ -47,11 +48,12 @@ async def count_info(_, msg):
 # 私聊开启面板
 @bot.on_message(filters.command('start', prefixes) & filters.private)
 async def p_start(_, msg):
-    if not await user_in_group_filter(_, msg):
+    if not await user_in_group_filter(_, msg):#如果不在群组内
         return await asyncio.gather(deleteMessage(msg),
                                     sendMessage(msg,
                                                 '💢 拜托啦！请先点击下面加入我们的群组和频道，然后再 /start 一下好吗？\n\n'
-                                                '⁉️ ps：如果您已在群组中且收到此消息，请联系管理员解除您的权限限制，因为被限制用户无法使用本bot。',
+                                                '⁉️ ps：如果您已在群组中且收到此消息，请联系管理员解除您的权限限制，因为被限制用户无法使用本bot。\n\n'
+                                                '💰 在发卡站购买月卡即可注册使用！',
                                                 buttons=judge_group_ikb))
     try:
         u = msg.command[1].split('-')[0]

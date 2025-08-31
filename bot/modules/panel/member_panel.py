@@ -40,6 +40,8 @@ async def create_user(_, call, us, stats):
 
     try:
         emby_name, emby_pwd2 = msg.text.split()
+        #这里初次注册将安全码和emby密码统一
+        embypasswd = emby_pwd2
     except (IndexError, ValueError):
         await msg.reply(f'⚠️ 输入格式错误\n\n`{msg.text}`\n **会话已结束！**')
     else:
@@ -48,7 +50,7 @@ async def create_user(_, call, us, stats):
         send = await msg.reply(
             f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n__正在为您初始化账户，更新用户策略__......')
         # emby api操作
-        data = await emby.emby_create(emby_name, us)
+        data = await emby.emby_create(emby_name, us,embypasswd)
         if not data:
             await editMessage(send,
                               '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**',
@@ -79,7 +81,9 @@ async def create_user(_, call, us, stats):
                               f'· 到期时间 | `{ex}`\n'
                               f'· 当前线路：\n'
                               f'{emby_line}\n\n'
-                              f'**·【服务器】 - 查看线路和密码**')
+                              f'**·【服务器】 - 快速填写：**\n'
+                              f'[一键导入SenPlayer URL](senplayer://importserver?type=emby&name=起点影视&note=高清影视服务器&address=https://cdn.qdz1.top&username={emby_name}&password={pwd}&address1name=cf线路1&address1=https://nb.28.al&address2name=备用线路2&address2=http://backup2.example.com:8095)\n'
+                              )
             LOGGER.info(f"【创建账户】[开注状态]：{call.from_user.id} - 建立了 {emby_name} ") if stats else LOGGER.info(
                 f"【创建账户】：{call.from_user.id} - 建立了 {emby_name} ")
             tem_adduser()

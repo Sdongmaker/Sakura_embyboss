@@ -1,0 +1,132 @@
+{
+    "bot_name": "create_tdck_chat_bot",
+    "bot_token": "7662368119:AAF6FI5pZH-Aese3BqfwsFDKg53O9zs_XMQ",
+    "owner_api": 25634370,
+    "owner_hash": "4ba78d3459a2d86f5e122286c103d557",
+    "owner": 6378373740,
+    "group": [
+        -1003020437271
+    ],
+    "main_group": "botTest00q",
+    "chanel": "botTest00q",
+    "bot_photo": "https://i.mji.rip/2025/07/27/550b6aeba7a823bb323cd73ff2967a2b.jpeg",
+    "open": {
+        "stat": false,
+        "open_us": 30,
+        "all_user": 1000,
+        "timing": 0,
+        "tem": 1,
+        "checkin": false,
+        "exchange": false,
+        "whitelist": false,
+        "invite": false,
+        "invite_lv": "b",
+        "leave_ban": true,
+        "uplays": true,
+        "checkin_reward": [
+            1,
+            10
+        ],
+        "exchange_cost": 100,
+        "whitelist_cost": 9999,
+        "invite_cost": 1000
+    },
+    "admins": [],
+    "money": "积分",
+    "emby_api": "609a2d60653e465d85998f650cdad0e6",
+    "emby_url": "http://38.246.112.104:8095",
+    "emby_block": [
+        "nsfw"
+    ],
+    "emby_line": "susuyyds.com",
+    "extra_emby_libs": [
+        "电视"
+    ],
+    "db_host": "152.53.131.200",
+    "db_user": "root",
+    "db_pwd": "mysql_xa8tPy",
+    "db_name": "test001",
+    "db_port": 3306,
+    "tz_ad": "",
+    "tz_api": "",
+    "tz_id": [],
+    "ranks": {
+        "logo": "起点",
+        "backdrop": false
+    },
+    "schedall": {
+        "dayrank": true,
+        "weekrank": true,
+        "dayplayrank": false,
+        "weekplayrank": false,
+        "check_ex": true,
+        "low_activity": false,
+        "day_ranks_message_id": 21,
+        "week_ranks_message_id": 23,
+        "restart_chat_id": 0,
+        "restart_msg_id": 0,
+        "backup_db": false
+    },
+    "db_is_docker": true,
+    "db_docker_name": "mysql",
+    "db_backup_dir": "./db_backup",
+    "db_backup_maxcount": 7,
+    "w_anti_channel_ids": [],
+    "proxy": {
+        "scheme": "",
+        "hostname": "",
+        "port": null,
+        "username": "",
+        "password": ""
+    },
+    "kk_gift_days": 30,
+    "fuxx_pitao": true,
+    "activity_check_days": 21,
+    "freeze_days": 5,
+    "emby_whitelist_line": null,
+    "blocked_clients": [
+        ".*curl.*",
+        ".*wget.*",
+        ".*python.*",
+        ".*bot.*",
+        ".*spider.*",
+        ".*crawler.*",
+        ".*scraper.*",
+        ".*downloader.*",
+        ".*aria2.*",
+        ".*youtube-dl.*",
+        ".*yt-dlp.*",
+        ".*ffmpeg.*",
+        ".*vlc.*"
+    ],
+    "client_filter_terminate_session": true,
+    "client_filter_block_user": false,
+    "moviepilot": {
+        "status": false,
+        "url": "",
+        "username": null,
+        "password": null,
+        "access_token": null,
+        "price": 1,
+        "download_log_chatid": null,
+        "lv": "b"
+    },
+    "auto_update": {
+        "status": true,
+        "git_repo": "berry8838/Sakura_embyboss",
+        "commit_sha": null,
+        "up_description": null
+    },
+    "red_envelope": {
+        "status": true,
+        "allow_private": true
+    },
+    "api": {
+        "status": true,
+        "http_url": "0.0.0.0",
+        "http_port": 8838,
+        "allow_origins": [
+            "*"
+        ]
+    }
+}

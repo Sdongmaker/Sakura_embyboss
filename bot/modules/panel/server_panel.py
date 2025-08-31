@@ -31,7 +31,6 @@ async def server(_, call):
     else:
         keyboard, sever = await cr_page_server()
         server_info = ''.join([item['server'] for item in sever if item['id'] == j])
-
     pwd = '空' if not data.pwd else data.pwd
     line = ''
     if data.lv == 'b':
@@ -50,5 +49,7 @@ async def server(_, call):
            f'{line}\n\n' \
            f'{server_info}' \
            f'· 🎬 在线 | **{online}** 人\n\n' \
-           f'**· 🌏 [{(datetime.now(timezone(timedelta(hours=8)))).strftime("%Y-%m-%d %H:%M:%S")}]**'
+           f'**· 🌏 [{(datetime.now(timezone(timedelta(hours=8)))).strftime("%Y-%m-%d %H:%M:%S")}]**\n\n' \
+           f'senplayer://importserver?type=emby&name=起点影视&note=高清影视服务器&address=http://38.246.112.104:8095&username={data.name}&password={pwd}&address1name=备用线路1&address1=http://backup1.example.com:8095' \
+           f'[hills](https://gocy.pages.dev/#hills://import?type=emby&scheme=http&host=38.246.112.104&port=8095&username={data.name}&password={pwd})'
     await editMessage(call, text, buttons=keyboard)
