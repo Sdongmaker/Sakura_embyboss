@@ -1,6 +1,8 @@
 """
 基本的sql操作
 """
+from datetime import datetime
+
 from bot.sql_helper import Base, Session
 from sqlalchemy import Column, BigInteger, String, DateTime, Integer, case
 from sqlalchemy import func
@@ -26,6 +28,75 @@ class Emby(Base):
     iv = Column(Integer, default=0)
     ch = Column(DateTime, nullable=True)
 
+class EmbyServerAccount(Base):
+    """
+    emby_server_accounts 表，(tg, server) 复合主键
+    记录某个 tg 在各台 Emby 服务器上的账户实体；emby 表仍是身份/计费/密码的权威源
+    """
+    __tablename__ = 'emby_server_accounts'
+    tg = Column(BigInteger, primary_key=True, autoincrement=False)
+    server = Column(String(32), primary_key=True)
+    embyid = Column(String(255), nullable=True)
+    name = Column(String(255), nullable=True)
+    status = Column(String(16), default='active')
+    cr = Column(DateTime, nullable=True)
+
+
+def sql_add_server_account(tg: int, server: str, embyid: str, name: str = None, status: str = 'active') -> bool:
+    """
+    新增或更新一条服务器账户记录（按 (tg, server) 幂等）
+    """
+    with Session() as session:
+        try:
+            row = session.query(EmbyServerAccount).filter(
+                EmbyServerAccount.tg == tg, EmbyServerAccount.server == server
+            ).first()
+            if row is None:
+                row = EmbyServerAccount(tg=tg, server=server, cr=datetime.now())
+                session.add(row)
+            row.embyid = embyid
+            row.name = name
+            row.status = status
+            session.commit()
+            return True
+        except Exception as e:
+            LOGGER.error(f"写入服务器账户记录失败 tg={tg} server={server}: {e}")
+            session.rollback()
+            return False
+
+
+def sql_get_server_accounts(tg: int) -> list:
+    """
+    查询某个 tg 的全部服务器账户记录
+    :return: [(server, embyid, name, status)]，按主键顺序
+    """
+    with Session() as session:
+        try:
+            rows = session.query(EmbyServerAccount).filter(EmbyServerAccount.tg == tg).all()
+            return [(row.server, row.embyid, row.name, row.status) for row in rows]
+        except Exception as e:
+            LOGGER.error(f"查询服务器账户记录失败 tg={tg}: {e}")
+            return []
+
+
+def sql_delete_server_account(tg: int, server: str = None) -> bool:
+    """
+    删除某 tg 的服务器账户记录，server 为 None 时删除该 tg 的全部记录
+    """
+    with Session() as session:
+        try:
+            query = session.query(EmbyServerAccount).filter(EmbyServerAccount.tg == tg)
+            if server is not None:
+                query = query.filter(EmbyServerAccount.server == server)
+            deleted = query.delete(synchronize_session=False)
+            session.commit()
+            return deleted > 0
+        except Exception as e:
+            LOGGER.error(f"删除服务器账户记录失败 tg={tg} server={server}: {e}")
+            session.rollback()
+            return False
+
+
 def sql_add_emby(tg: int):
     """
     添加一条emby记录，如果tg已存在则忽略
@@ -47,6 +118,8 @@ def sql_delete_emby_by_tg(tg):
             emby = session.query(Emby).filter(Emby.tg == tg).first()
             if emby:
                 session.delete(emby)
+                # 一并清理该用户在各地 Emby 的账户记录，避免残留
+                session.query(EmbyServerAccount).filter(EmbyServerAccount.tg == tg).delete(synchronize_session=False)
                 session.commit()
                 LOGGER.info(f"删除数据库记录成功 {tg}")
                 return True
@@ -100,7 +173,13 @@ def sql_delete_emby(tg=None, embyid=None, name=None):
             emby = session.query(Emby).filter(condition).with_for_update().first()
             if emby:
                 LOGGER.info(f"删除数据库记录 {emby.name} - {emby.embyid} - {emby.tg}")
+                account_tg = emby.tg
                 session.delete(emby)
+                # 一并清理该用户在各地 Emby 的账户记录，避免残留
+                if account_tg is not None:
+                    session.query(EmbyServerAccount).filter(EmbyServerAccount.tg == account_tg).delete(
+                        synchronize_session=False
+                    )
                 try:
                     session.commit()
                     LOGGER.info(f"成功删除数据库记录: tg={tg}, embyid={embyid}, name={name}")

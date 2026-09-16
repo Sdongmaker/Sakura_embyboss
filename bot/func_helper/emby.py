@@ -5,12 +5,21 @@ emby的api操作方法 - 使用aiohttp重构版本
 """
 import asyncio
 import aiohttp
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Dict, Any, List, Union
 from contextlib import asynccontextmanager
 
-from bot import emby_url, emby_api, emby_block, extra_emby_libs, LOGGER
-from bot.sql_helper.sql_emby import sql_update_emby, Emby
+from bot import emby_url, emby_api, emby_block, extra_emby_libs, LOGGER, config
+from bot.schemas import ServerCfg
+from bot.sql_helper.sql_emby import (
+    sql_add_server_account,
+    sql_delete_server_account,
+    sql_get_emby,
+    sql_get_server_accounts,
+    sql_update_emby,
+    Emby,
+)
 from bot.func_helper.utils import pwd_create, convert_runtime, cache, Singleton
 
 
@@ -92,16 +101,20 @@ class Embyservice(metaclass=Singleton):
     提供统一的异步HTTP请求、错误处理、重试机制和资源管理
     """
 
-    def __init__(self, url: str, api_key: str, timeout: int = 10, max_retries: int = 1):
+    def __init__(self, url: str, api_key: str, timeout: int = 10, max_retries: int = 1, name: str = None):
         """
         初始化 Emby 服务
         :param url: Emby 服务器地址
         :param api_key: API 密钥
         :param timeout: 请求超时时间（秒）
         :param max_retries: 最大重试次数
+        :param name: 服务器标识（对应 config.servers[i].name）
         """
         self.url = url.rstrip('/')
         self.api_key = api_key
+        self.name = name or "main"
+        # 该服需要屏蔽的媒体库，默认与主服一致
+        self.block_libs = emby_block + extra_emby_libs
         self.max_retries = max_retries
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         
@@ -220,11 +233,12 @@ class Embyservice(metaclass=Singleton):
         
         return EmbyApiResult(False, error="达到最大重试次数")
 
-    async def emby_create(self, name: str, days: int) -> Union[Tuple[str, str, datetime], bool]:
+    async def emby_create(self, name: str, days: int, password: str = None) -> Union[Tuple[str, str, datetime], bool]:
         """
         创建 Emby 账户
         :param name: 用户名
         :param days: 有效天数
+        :param password: 指定密码，None 时按原规则随机生成（多服注册时由主服生成后复用）
         :return: (用户ID, 密码, 过期时间) 或 False
         """
         try:
@@ -243,7 +257,7 @@ class Embyservice(metaclass=Singleton):
                 return False
             
             # 2. 设置密码
-            password = await pwd_create(8)
+            password = password or await pwd_create(8)
             pwd_data = pwd_policy(user_id, new=password)
             result = await self._request('POST', f'/emby/Users/{user_id}/Password', json=pwd_data)
             if not result.success:
@@ -259,8 +273,8 @@ class Embyservice(metaclass=Singleton):
             
             # 4. 隐藏 emby_block 和 extra_emby_libs 媒体库
             try:
-                # 使用封装的隐藏方法
-                block_libs = emby_block + extra_emby_libs
+                # 使用封装的隐藏方法，屏蔽库按服务器配置取
+                block_libs = self.block_libs
                 result = await self.hide_folders_by_names(user_id, block_libs)
                 if not result:
                     LOGGER.warning(f"设置媒体库权限失败: {user_id}，但用户已创建成功")
@@ -279,13 +293,16 @@ class Embyservice(metaclass=Singleton):
         """
         删除 Emby 账户
         :param user_id: 用户ID
-        :return: 是否成功
+        :return: 是否成功（账户本就不存在时同样视为成功，便于重试幂等）
         """
         try:
             LOGGER.info(f"开始删除用户: {emby_id}")
             result = await self._request('DELETE', f'/emby/Users/{emby_id}')
             if result.success:
                 LOGGER.info(f"成功删除用户: {emby_id}")
+                return True
+            elif result.error == "资源不存在":
+                LOGGER.info(f"用户已不存在，视为删除成功: {emby_id}")
                 return True
             else:
                 LOGGER.error(f"删除用户失败: {emby_id} - {result.error}")
@@ -294,11 +311,12 @@ class Embyservice(metaclass=Singleton):
             LOGGER.error(f"删除用户异常: {emby_id} - {str(e)}")
             return False
 
-    async def emby_reset(self, emby_id: str, new_password: str = None) -> bool:
+    async def emby_reset(self, emby_id: str, new_password: str = None, write_db: bool = True) -> bool:
         """
         重置用户密码
         :param user_id: 用户ID
         :param new_password: 新密码，为空则重置为无密码
+        :param write_db: 是否同步写入 emby.pwd，多服同步重置时由调用方统一写库
         :return: 是否成功
         """
         try:
@@ -313,6 +331,9 @@ class Embyservice(metaclass=Singleton):
             
             if new_password is None:
                 # 更新数据库记录为无密码
+                if not write_db:
+                    LOGGER.info(f"成功重置密码为空: {emby_id}")
+                    return True
                 if sql_update_emby(Emby.embyid == emby_id, pwd=None):
                     LOGGER.info(f"成功重置密码为空: {emby_id}")
                     return True
@@ -326,7 +347,11 @@ class Embyservice(metaclass=Singleton):
                 if not result.success:
                     LOGGER.error(f"设置新密码失败: {emby_id} - {result.error}")
                     return False
-                
+
+                if not write_db:
+                    LOGGER.info(f"成功重置密码: {emby_id}")
+                    return True
+
                 # 更新数据库
                 if sql_update_emby(Emby.embyid == emby_id, pwd=new_password):
                     LOGGER.info(f"成功重置密码: {emby_id}")
@@ -1032,7 +1057,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": True
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={self.api_key}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1090,7 +1115,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": False
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={self.api_key}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1172,7 +1197,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": False
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={self.api_key}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1254,7 +1279,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": False
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={self.api_key}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1319,7 +1344,7 @@ class Embyservice(metaclass=Singleton):
                 "ReplaceUserId": True
             }
             
-            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={emby_api}', json=data)
+            result = await self._request('POST', f'/emby/user_usage_stats/submit_custom_query?api_key={self.api_key}', json=data)
             if result.success and result.data:
                 ret = result.data
                 if len(ret.get("colums", [])) == 0:
@@ -1348,7 +1373,7 @@ class Embyservice(metaclass=Singleton):
     @staticmethod
     async def get_medias_count() -> str:
         """
-        获取媒体数量统计
+        获取媒体数量统计（主服）
         :return: 统计文本
         """
         try:
@@ -1475,5 +1500,197 @@ class Embyservice(metaclass=Singleton):
                 pass
 
 
-# 创建全局实例
-emby = Embyservice(emby_url, emby_api)
+# ==================== 多服务器支持 ====================
+# servers[0] 为主服，emby 为历史全局单例别名，等价于主服客户端
+emby_pool: Dict[str, Embyservice] = {}
+for _server in config.servers:
+    _embyservice = Embyservice(_server.url, _server.api, name=_server.name)
+    if _server.block_libs is not None:
+        _embyservice.block_libs = list(_server.block_libs)
+    emby_pool[_server.name] = _embyservice
+
+# 创建全局实例（主服）
+emby = emby_pool[config.servers[0].name]
+
+
+def get_emby(server: str = None) -> Embyservice:
+    """
+    获取指定服务器的客户端
+    :param server: 服务器标识，None 或未配置时返回主服
+    """
+    if server and server in emby_pool:
+        return emby_pool[server]
+    return emby
+
+
+def primary_server_name() -> str:
+    """主服标识（config.servers[0].name）"""
+    return config.servers[0].name
+
+
+def target_servers(lv: str = None) -> List[ServerCfg]:
+    """
+    按用户等级筛选需要纳管的服务器
+    :param lv: 用户等级，None 表示不按等级筛选
+    """
+    return [server for server in config.servers if not (lv and server.lvs and lv not in server.lvs)]
+
+
+def server_account_targets(tg: int = None, embyid: str = None) -> List[Tuple[str, str]]:
+    """
+    解析 tg 在各服上的账户，返回 [(server, embyid)]
+    没有服务器账户记录时回退到指定的 embyid（挂主服名下），兼容历史数据
+    """
+    targets = [(server, eid) for server, eid, _name, _status in sql_get_server_accounts(tg) if eid] if tg else []
+    if not targets and embyid:
+        targets.append((primary_server_name(), embyid))
+    return targets
+
+
+@dataclass
+class ServerCreateResult:
+    """
+    多服建号结果
+    :param accounts: [(server, embyid, status)]，status 为 active/failed
+    """
+    ok: bool
+    password: Optional[str] = None
+    embyid: Optional[str] = None
+    expired: Optional[datetime] = None
+    accounts: List[Tuple[str, Optional[str], str]] = field(default_factory=list)
+
+
+async def emby_create_all(name: str, days: int, lv: str = None, password: str = None) -> ServerCreateResult:
+    """
+    在所有目标服务器上创建同名同密账户
+    :param lv: 用户等级，用于按 servers[i].lvs 筛选目标服务器
+    :param password: 指定密码，None 时由主服按原规则生成后复用给其余服务器
+    主服失败视为整体失败（emby 表以主服账户为锚点）；其余服务器失败只标记 failed 不阻塞注册
+    """
+    targets = target_servers(lv)
+    if not targets:
+        LOGGER.error(f"没有可用的 Emby 服务器配置，创建账户失败: {name}")
+        return ServerCreateResult(ok=False)
+
+    result = ServerCreateResult(ok=False)
+    for index, server in enumerate(targets):
+        try:
+            data = await get_emby(server.name).emby_create(name=name, days=days, password=password)
+        except Exception as e:
+            LOGGER.exception(f"服务器创建账户异常: server={server.name}, name={name}, error={e}")
+            data = False
+
+        if not data:
+            if index == 0:
+                LOGGER.error(f"主服创建账户失败，终止创建: server={server.name}, name={name}")
+                return result
+            LOGGER.warning(f"跳过创建失败的服务器: server={server.name}, name={name}")
+            result.accounts.append((server.name, None, "failed"))
+            continue
+
+        embyid, pwd = data[0], data[1]
+        password = pwd  # 主服生成或传入的密码，其余服务器复用，保证多服同密
+        result.accounts.append((server.name, embyid, "active"))
+        LOGGER.info(f"服务器创建账户成功: server={server.name}, name={name}, embyid={embyid}")
+
+    result.ok = True
+    result.password = password
+    result.embyid = result.accounts[0][1]
+    result.expired = datetime.now() + timedelta(days=days)
+    return result
+
+
+async def emby_del_all(tg: int = None, embyid: str = None) -> bool:
+    """
+    删除账户在各服上的实体，删除成功的服务器同步清理账户记录
+    :return: 是否全部成功；失败的服务器保留记录便于重试
+    """
+    targets = server_account_targets(tg=tg, embyid=embyid)
+    if not targets:
+        LOGGER.warning(f"没有可删除的服务器账户: tg={tg}, embyid={embyid}")
+        return False
+
+    all_ok = True
+    for server, eid in targets:
+        if await get_emby(server).emby_del(emby_id=eid):
+            if tg is not None:
+                sql_delete_server_account(tg=tg, server=server)
+        else:
+            LOGGER.error(f"删除账户失败: server={server}, embyid={eid}, tg={tg}")
+            all_ok = False
+    return all_ok
+
+
+async def emby_policy_all(tg: int = None, embyid: str = None, admin: bool = False, disable: bool = False) -> bool:
+    """
+    在各服上同步启用/禁用用户
+    :return: 是否全部成功
+    """
+    targets = server_account_targets(tg=tg, embyid=embyid)
+    if not targets:
+        LOGGER.warning(f"没有可操作的服务器账户: tg={tg}, embyid={embyid}")
+        return False
+
+    all_ok = True
+    for server, eid in targets:
+        if not await get_emby(server).emby_change_policy(emby_id=eid, admin=admin, disable=disable):
+            LOGGER.error(f"修改用户策略失败: server={server}, embyid={eid}, disable={disable}, tg={tg}")
+            all_ok = False
+    return all_ok
+
+
+async def emby_reset_all(tg: int, new_password: str = None, embyid: str = None) -> bool:
+    """
+    在各服上同步重置为同一密码，全部成功后统一写入 emby.pwd
+    :param new_password: 新密码，None 表示重置为无密码
+    :return: 是否成功
+    """
+    targets = server_account_targets(tg=tg, embyid=embyid)
+    if not targets:
+        LOGGER.warning(f"没有可重置密码的服务器账户: tg={tg}")
+        return False
+
+    all_ok = True
+    for server, eid in targets:
+        if not await get_emby(server).emby_reset(emby_id=eid, new_password=new_password, write_db=False):
+            LOGGER.error(f"重置密码失败: server={server}, embyid={eid}, tg={tg}")
+            all_ok = False
+    if not all_ok:
+        return False
+
+    if not sql_update_emby(Emby.tg == tg, pwd=new_password):
+        LOGGER.error(f"密码已在各服重置，但数据库写入失败: tg={tg}")
+        return False
+    return True
+
+
+def render_server_lines(tg: int = None, lv: str = None, embyid: str = None) -> str:
+    """
+    渲染用户可见的线路文本，多服时逐台列出并标注开通状态，单服时与原展示一致
+    :param embyid: 主服账户 id，用于身份刚绑定/转移、emby 表尚未写入时也能正确展示
+    未登记服务器账户的历史账户回退到 emby 表的主服账户
+    """
+    targets = target_servers(lv)
+    if not targets:
+        return config.servers[0].line
+    if len(targets) == 1:
+        return targets[0].line or config.servers[0].url
+
+    rows = {row[0]: row for row in sql_get_server_accounts(tg)} if tg else {}
+    if not rows:
+        primary = primary_server_name()
+        if embyid:
+            rows = {primary: (primary, embyid, None, 'active')}
+        elif tg:
+            legacy = sql_get_emby(tg=tg)
+            if legacy is not None and legacy.embyid:
+                rows = {primary: (primary, legacy.embyid, legacy.name, 'active')}
+
+    lines = []
+    for server in targets:
+        text = server.line or server.url
+        row = rows.get(server.name)
+        if row is None or not (row[1] and row[3] == 'active'):
+            text += '（未开通）'
+        lines.append(f'· {server.name} | {text}')
+    return '\n'.join(lines)

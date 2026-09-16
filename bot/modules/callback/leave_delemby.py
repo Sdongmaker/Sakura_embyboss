@@ -5,7 +5,7 @@ from pyrogram.types import ChatMemberUpdated
 from bot import bot, group, LOGGER, _open
 from bot.func_helper.utils import tem_deluser
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby_del_all
 
 
 @bot.on_chat_member_updated(filters.chat(group))
@@ -18,7 +18,7 @@ async def leave_del_emby(_, event: ChatMemberUpdated):
                 e = sql_get_emby(tg=user_id)
                 if e is None or e.embyid is None:
                     return
-                if await emby.emby_del(emby_id=e.embyid):
+                if await emby_del_all(tg=user_id, embyid=e.embyid):
                     sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
                     tem_deluser()
                     LOGGER.info(
@@ -45,7 +45,7 @@ async def leave_del_emby(_, event: ChatMemberUpdated):
                 e = sql_get_emby(tg=user_id)
                 if e is None or e.embyid is None:
                     return
-                if await emby.emby_del(emby_id=e.embyid):
+                if await emby_del_all(tg=user_id, embyid=e.embyid):
                     sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
                                     ex=None)
                     tem_deluser()

@@ -5,7 +5,7 @@ from pyrogram import filters
 from pyrogram.types import CallbackQuery
 
 from bot import bot, prefixes, LOGGER, emby_line, owner, bot_photo, schedall, config
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby, emby_del_all, emby_policy_all
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.fix_bottons import uinfo_ikb, uinfo_delete_confirm_ikb, close_it_ikb
 from bot.func_helper.msg_utils import sendMessage, editMessage, sendPhoto, callAnswer
@@ -72,7 +72,7 @@ async def urm_user(_, msg):
         e = e2
         stats = 1
 
-    if await emby.emby_del(emby_id=e.embyid):
+    if await emby_del_all(tg=None if stats else e.tg, embyid=e.embyid):
         sql_update_emby(Emby.tg == e.tg, lv='d', name=None, embyid=None, cr=None,
                         ex=None) if not stats else sql_delete_emby2(e.embyid)
         try:
@@ -156,7 +156,7 @@ async def uinfo_disable_cb(_, call):
         stats = 1
     if e.lv == 'c':
         return await callAnswer(call, "⚠️ 账户已是禁用状态", show_alert=True)
-    if await emby.emby_change_policy(emby_id=embyid, disable=True):
+    if await emby_policy_all(tg=None if stats else e.tg, embyid=embyid, disable=True):
         if stats:
             sql_update_emby2(Emby2.embyid == embyid, lv='c')
         else:
@@ -180,7 +180,7 @@ async def uinfo_enable_cb(_, call):
         stats = 1
     if e.lv != 'c':
         return await callAnswer(call, "⚠️ 账户当前未被禁用", show_alert=True)
-    if await emby.emby_change_policy(emby_id=embyid, disable=False):
+    if await emby_policy_all(tg=None if stats else e.tg, embyid=embyid, disable=False):
         if stats:
             sql_update_emby2(Emby2.embyid == embyid, lv='b')
         else:
@@ -215,7 +215,7 @@ async def uinfo_delete_confirm_cb(_, call):
             return await callAnswer(call, "❌ 未找到该用户", show_alert=True)
         stats = 1
     name = e.name
-    if await emby.emby_del(emby_id=embyid):
+    if await emby_del_all(tg=None if stats else e.tg, embyid=embyid):
         if stats:
             sql_delete_emby2(embyid)
         else:

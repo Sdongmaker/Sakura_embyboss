@@ -16,6 +16,17 @@
   "emby_url": "http://255.255.255.255:8096",
   "emby_line": "susuyyds.com",
   "emby_whitelist_line": null,
+  "servers": [
+    {
+      "name": "main",
+      "url": "http://255.255.255.255:8096",
+      "api": "xxxxx",
+      "line": "susuyyds.com",
+      "lvs": null,
+      "block_libs": null
+    }
+  ],
+  "servers_note": "多台 Emby 时按顺序填写，servers[0] 为主服（emby_url/emby_api/emby_line 作为其兼容别名）。name 需唯一；lvs 为该服允许开通的等级(如 [\"a\",\"b\"])，留空表示不限；block_libs 为该服需屏蔽的媒体库，留空表示用全局 emby_block + extra_emby_libs。注册时在所有目标服创建同名同密账户。",
   "blocked_clients": [
     ".*curl.*",
     ".*wget.*",

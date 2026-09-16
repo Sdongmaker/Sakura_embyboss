@@ -30,12 +30,28 @@ def install_test_stubs():
     aiohttp_stub.ClientSession = ClientSession
     sys.modules["aiohttp"] = aiohttp_stub
 
+    class ServerCfg:
+        def __init__(self, name, url, api, line="", lvs=None, block_libs=None):
+            self.name = name
+            self.url = url
+            self.api = api
+            self.line = line
+            self.lvs = lvs
+            self.block_libs = block_libs
+
+    schemas_stub = types.ModuleType("bot.schemas")
+    schemas_stub.ServerCfg = ServerCfg
+    sys.modules["bot.schemas"] = schemas_stub
+
     bot_stub = types.ModuleType("bot")
     bot_stub.__path__ = [str(BOT_DIR)]
     bot_stub.emby_url = "http://emby.local"
     bot_stub.emby_api = "token"
     bot_stub.emby_block = ["播放列表"]
     bot_stub.extra_emby_libs = ["额外库"]
+    bot_stub.config = types.SimpleNamespace(
+        servers=[ServerCfg("main", "http://emby.local", "token", "emby.local")]
+    )
     bot_stub.LOGGER = types.SimpleNamespace(
         debug=lambda *args, **kwargs: None,
         info=lambda *args, **kwargs: None,
@@ -46,6 +62,10 @@ def install_test_stubs():
 
     sql_emby_stub = types.ModuleType("bot.sql_helper.sql_emby")
     sql_emby_stub.sql_update_emby = lambda *args, **kwargs: True
+    sql_emby_stub.sql_add_server_account = lambda *args, **kwargs: True
+    sql_emby_stub.sql_delete_server_account = lambda *args, **kwargs: True
+    sql_emby_stub.sql_get_server_accounts = lambda *args, **kwargs: []
+    sql_emby_stub.sql_get_emby = lambda *args, **kwargs: None
     sql_emby_stub.Emby = types.SimpleNamespace(embyid="embyid")
     sys.modules["bot.sql_helper.sql_emby"] = sql_emby_stub
 
@@ -65,9 +85,10 @@ def install_test_stubs():
         _instances = {}
 
         def __call__(cls, *args, **kwargs):
-            if cls not in cls._instances:
-                cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-            return cls._instances[cls]
+            key = (cls, args, frozenset(kwargs.items()))
+            if key not in cls._instances:
+                cls._instances[key] = super(Singleton, cls).__call__(*args, **kwargs)
+            return cls._instances[key]
 
     utils_stub.pwd_create = pwd_create
     utils_stub.convert_runtime = lambda value: value

@@ -4,8 +4,8 @@
 """
 from datetime import datetime, timezone, timedelta
 from pyrogram import filters
-from bot import bot, emby_line, emby_whitelist_line
-from bot.func_helper.emby import emby
+from bot import bot, emby_whitelist_line
+from bot.func_helper.emby import emby, render_server_lines
 from bot.func_helper.filters import user_in_group_on_filter
 from bot.sql_helper.sql_emby import sql_get_emby
 from bot.func_helper.fix_bottons import cr_page_server
@@ -38,11 +38,10 @@ async def server(_, call):
         server_info = ''.join([item['server'] for item in sever if item['id'] == server_id])
 
     pwd = '空' if not data.pwd else data.pwd
-    line = ''
     if data.lv == 'b':
-        line = f'{emby_line}'
+        line = render_server_lines(data.tg, data.lv, data.embyid)
     elif data.lv == 'a':
-        line = f'{emby_line}'
+        line = render_server_lines(data.tg, data.lv, data.embyid)
         if emby_whitelist_line:
             line += f'\n{emby_whitelist_line}'
     else:

@@ -6,7 +6,7 @@ from datetime import timedelta, datetime
 
 from bot import bot, _open, LOGGER, bot_photo, ranks
 from bot.schemas import Yulv
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby_policy_all
 from bot.func_helper.concurrency import get_user_lock
 from bot.func_helper.fix_bottons import register_code_ikb
 from bot.func_helper.msg_utils import sendMessage, sendPhoto
@@ -184,7 +184,7 @@ async def rgs_code(_, msg, register_code):
 
             if result["restore_policy"]:
                 try:
-                    await emby.emby_change_policy(emby_id=result["embyid"], disable=False)
+                    await emby_policy_all(tg=msg.from_user.id, embyid=result["embyid"], disable=False)
                 except Exception as e:
                     LOGGER.error(f"【续期码】恢复账户策略失败: {e}")
 

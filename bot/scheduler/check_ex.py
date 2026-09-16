@@ -7,7 +7,7 @@ from pyrogram.errors import FloodWait
 from sqlalchemy import and_
 from asyncio import sleep
 from bot import bot, group, LOGGER, _open, config
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby_policy_all, emby_del_all
 from bot.func_helper.utils import tem_deluser
 from bot.sql_helper.sql_emby import Emby, get_all_emby, sql_update_emby
 from bot.sql_helper.sql_emby2 import get_all_emby2, Emby2, sql_update_emby2
@@ -60,7 +60,7 @@ async def check_expired():
                 LOGGER.error(e)
 
         else:
-            if await emby.emby_change_policy(emby_id=r.embyid, disable=True):
+            if await emby_policy_all(tg=r.tg, embyid=r.embyid, disable=True):
                 dead_day = r.ex + timedelta(days=config.freeze_days)
                 if sql_update_emby(Emby.tg == r.tg, lv='c'):
                     text = f'【到期检测】\n#id{r.tg} 到期禁用 [{r.name}](tg://user?id={r.tg})\n将为您封存至 {dead_day.strftime("%Y-%m-%d")}，请及时续期'
@@ -88,7 +88,7 @@ async def check_expired():
     for c in rsc:
         if c.us >= 30:
             c_us = c.us - 30
-            if await emby.emby_change_policy(emby_id=c.embyid, disable=False):
+            if await emby_policy_all(tg=c.tg, embyid=c.embyid, disable=False):
                 if sql_update_emby(Emby.tg == c.tg, lv='b', ex=ext, us=c_us):
                     text = f'【到期检测】\n#id{c.tg} 解封账户 [{c.name}](tg://user?id={c.tg})\n' \
                            f'在当前时间自动续期30天\n📅实时到期: {ext.strftime("%Y-%m-%d %H:%M:%S")}'
@@ -110,7 +110,7 @@ async def check_expired():
 
         elif _open.exchange and c.iv >= _open.exchange_cost:
             c_iv = c.iv - _open.exchange_cost
-            if await emby.emby_change_policy(emby_id=c.embyid, disable=False):
+            if await emby_policy_all(tg=c.tg, embyid=c.embyid, disable=False):
                 if sql_update_emby(Emby.tg == c.tg, lv='b', ex=ext, iv=c_iv):
                     text = f'【到期检测】\n#id{c.tg} 解封账户 [{c.name}](tg://user?id={c.tg})\n在当前时间自动续期30天\n📅实时到期：{ext.strftime("%Y-%m-%d %H:%M:%S")}'
                     LOGGER.info(text)
@@ -133,7 +133,7 @@ async def check_expired():
             delete_day = c.ex + timedelta(days=config.freeze_days)
             if datetime.now() < delete_day:
                 continue
-            if await emby.emby_del(emby_id=c.embyid):
+            if await emby_del_all(tg=c.tg, embyid=c.embyid):
                 sql_update_emby(Emby.embyid == c.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
                                 ex=None)
                 tem_deluser()
@@ -158,7 +158,7 @@ async def check_expired():
         return LOGGER.info(f'【封禁检测】- emby2 无数据，跳过')
     for e in rseired:
         print(e.embyid)
-        if await emby.emby_change_policy(emby_id=e.embyid, disable=True):
+        if await emby_policy_all(embyid=e.embyid, disable=True):
             if sql_update_emby2(Emby2.embyid == e.embyid, expired=1, lv='c'):
                 text = f"【封禁检测】- 到期封印非TG账户 [{e.name}](google.com?q={e.embyid}) Done！"
                 LOGGER.info(text)

@@ -474,6 +474,8 @@ async def set_emby_line(_, call):
     else:
         await txt.delete()
         config.emby_line = txt.text
+        # 多服展示取 servers[].line，此处同步主服，保证面板设置立即生效
+        config.servers[0].line = txt.text
         save_config()
         await editMessage(call, f"**【网址样式】:** \n\n{config.emby_line}\n\n设置完成！done！",
                           buttons=back_config_p_ikb)

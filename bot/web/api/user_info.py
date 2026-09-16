@@ -9,7 +9,7 @@ Date:2024/8/27
 import json
 from fastapi import APIRouter, Request
 from bot.sql_helper.sql_emby import Emby, sql_get_emby, sql_update_emby
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby_policy_all
 from bot import LOGGER, group, bot
 
 route = APIRouter()
@@ -96,7 +96,7 @@ async def ban_user(request: Request):
         if not user or not user.embyid:
             return {"code": 404, "message": "用户不存在"}
         
-        disable_emby = await emby.emby_change_policy(emby_id=user.embyid, disable=True)
+        disable_emby = await emby_policy_all(tg=user.tg, embyid=user.embyid, disable=True)
         
         if disable_emby:
             # 更新用户等级为封禁状态

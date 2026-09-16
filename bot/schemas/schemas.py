@@ -138,6 +138,15 @@ class RedEnvelope(BaseModel):
     status: bool = True  # 是否开启红包
     allow_private: bool = True # 是否允许专属红包
 
+class ServerCfg(BaseModel):
+    """单台 Emby 服务器配置，servers[0] 为主服"""
+    name: str  # 服务器标识，需在 servers 中唯一
+    url: str
+    api: str
+    line: Optional[str] = ""  # 展示给用户的访问线路
+    lvs: Optional[List[str]] = None  # 允许开通的等级，None/空表示不限
+    block_libs: Optional[List[str]] = None  # 该服需屏蔽的媒体库，None 表示用全局 emby_block + extra_emby_libs
+
 class Config(BaseModel):
     bot_name: str
     bot_token: str
@@ -210,11 +219,17 @@ class Config(BaseModel):
     auto_update: AutoUpdate = Field(default_factory=AutoUpdate)
     red_envelope: RedEnvelope = Field(default_factory=RedEnvelope)
     api: API = Field(default_factory=API)
+    # 多台 Emby 服务器，第一台为主服；不配置时自动由 emby_url/emby_api/emby_line 合成单服
+    servers: Optional[List[ServerCfg]] = None
 
     def __init__(self, **data):
         super().__init__(**data)
         if self.owner in self.admins:
             self.admins.remove(self.owner)
+        if not self.servers:
+            self.servers = [ServerCfg(name="main", url=self.emby_url, api=self.emby_api, line=self.emby_line)]
+        elif len({server.name for server in self.servers}) != len(self.servers):
+            raise ValueError("config.servers 中的 name 必须唯一")
 
     @classmethod
     def load_config(cls):

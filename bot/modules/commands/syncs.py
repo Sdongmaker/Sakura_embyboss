@@ -22,10 +22,10 @@ from asyncio import sleep
 from pyrogram import filters
 from pyrogram.errors import FloodWait
 from bot import bot, prefixes, bot_photo, LOGGER, owner, group
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby, emby_create_all, emby_del_all, emby_policy_all, primary_server_name
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.utils import tem_deluser, split_long_message
-from bot.sql_helper.sql_emby import get_all_emby, Emby, sql_get_emby, sql_update_embys, sql_delete_emby, sql_update_emby
+from bot.sql_helper.sql_emby import get_all_emby, Emby, sql_get_emby, sql_update_embys, sql_delete_emby, sql_update_emby, sql_add_server_account
 from bot.func_helper.msg_utils import deleteMessage, sendMessage, sendPhoto
 from bot.sql_helper.sql_emby2 import sql_get_emby2
 from bot.sql_helper.sql_favorites import sql_update_favorites, EmbyFavorites
@@ -55,7 +55,7 @@ async def sync_emby_group(_, msg):
         for i in r:
             b += 1
             if i.tg not in members:
-                if await emby.emby_del(emby_id=i.embyid):
+                if await emby_del_all(tg=i.tg, embyid=i.embyid):
                     sql_update_emby(Emby.embyid == i.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
                                     ex=None)
                     tem_deluser()
@@ -173,6 +173,9 @@ async def bindall_id(_, msg):
             continue
         ls.append([e.tg, Name, Emby_id])
     if sql_update_embys(some_list=ls, method='bind'):
+        # 同步主服账户记录，保持 emby_server_accounts 与 emby.embyid 一致
+        for i in ls:
+            sql_add_server_account(i[0], primary_server_name(), i[2], i[1])
         # 更新收藏记录
         for i in ls:
            favorites_updated = sql_update_favorites(condition=EmbyFavorites.embyname == i[1], embyid=i[2])
@@ -197,7 +200,7 @@ async def reload_admins(_, msg):
     await deleteMessage(msg)
     e = sql_get_emby(tg=msg.from_user.id)
     if e.embyid is not None:
-        await emby.emby_change_policy(emby_id=e.embyid, admin=True)
+        await emby_policy_all(tg=msg.from_user.id, embyid=e.embyid, admin=True)
         LOGGER.info(f"{msg.from_user.first_name} - {msg.from_user.id} 开启了 emby 后台")
         await sendMessage(msg, "👮🏻 授权完成。已开启emby后台", timer=60)
     else:
@@ -288,17 +291,19 @@ async def restore_from_db(_, msg):
             if embyuser.tg in chat_members:
                 try:
                     # emby api操作
-                    data = await emby.emby_create(name=embyuser.name, days=embyuser.us)
-                    if not data:
+                    result = await emby_create_all(name=embyuser.name, days=embyuser.us, lv='b')
+                    if not result.ok:
                         text += f'**- ❎ 已有此账户名\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通\n- ❎ 跳过恢复用户：#id{embyuser.tg} - [{embyuser.name}](tg://user?id={embyuser.tg}) \n**'
                         LOGGER.error(
                             f"【恢复账户】：重复账户 or 未知错误！{embyuser.name} 恢复失败！")
                         fail_count += 1
                     else:
                         tg = embyuser.tg
-                        embyid = data[0]
-                        pwd = data[1]
+                        embyid = result.embyid
+                        pwd = result.password
                         sql_update_emby(Emby.tg == tg, embyid=embyid, pwd=pwd)
+                        for server, server_embyid, status in result.accounts:
+                            sql_add_server_account(tg, server, server_embyid, embyuser.name, status)
                         
                         # 更安全的收藏记录更新，带错误处理
                         favorites_updated = sql_update_favorites(condition=EmbyFavorites.embyname == embyuser.name, embyid=embyid)
@@ -427,7 +432,7 @@ async def unban_all_users(_, msg):
                 db_user = next((user for user in allusers_in_db if user.name == emby_name), None)
                 
                 # 调用emby API解除禁用
-                if await emby.emby_change_policy(emby_id=emby_id, disable=False):
+                if await emby_policy_all(tg=db_user.tg if db_user else None, embyid=emby_id, disable=False):
                     unban_user_in_emby_count += 1
                     if not db_user:
                         # 数据库中未找到该用户，跳过
@@ -520,7 +525,7 @@ async def ban_all_users(_, msg):
                 
                 
                 # 调用emby API禁用用户
-                if await emby.emby_change_policy(emby_id=emby_id, disable=True):
+                if await emby_policy_all(tg=db_user.tg if db_user else None, embyid=emby_id, disable=True):
                     ban_user_in_emby_count += 1
                     if not db_user:
                         # 数据库中未找到该用户，跳过
@@ -604,10 +609,10 @@ async def delete_all_users(_, msg):
                 emby_id = emby_user.get('Id')
                 if not emby_name or not emby_id:
                     continue
-                if await emby.emby_del(emby_id=emby_id):    
+                db_user = next((user for user in allusers_in_db if user.name == emby_name), None)
+                if await emby_del_all(tg=db_user.tg if db_user else None, embyid=emby_id):    
                     delete_user_in_emby_count += 1
                     index += 1
-                    db_user = next((user for user in allusers_in_db if user.name == emby_name), None)
                     if not db_user:
                         continue
                     # 优先使用tg（主键）删除，如果embyid存在也一起使用

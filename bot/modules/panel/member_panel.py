@@ -11,10 +11,10 @@ import math
 import random
 from datetime import timedelta, datetime
 from bot.schemas import ExDate, Yulv
-from bot import bot, LOGGER, _open, emby_line, sakura_b, ranks, group, config, bot_name, schedall
+from bot import bot, LOGGER, _open, sakura_b, ranks, group, config, bot_name, schedall
 from pyrogram import filters
 from bot.func_helper.concurrency import get_user_lock
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby, emby_del_all, emby_policy_all, emby_reset_all, render_server_lines
 from bot.func_helper.register_queue import get_register_queue_manager, RegisterJob
 from bot.func_helper.filters import user_in_group_on_filter
 from bot.func_helper.utils import members_info, cr_link_one, judge_admins, tem_deluser, pwd_create
@@ -184,7 +184,7 @@ async def change_tg(_, call):
                    f'· 用户密码 | `{e.pwd}`\n' \
                    f'· 安全密码 | `{e.pwd2}`（仅发送一次）\n' \
                    f'· 到期时间 | `{e.ex}`\n\n' \
-                   f'· 当前线路：\n{emby_line}\n\n' \
+                   f'· 当前线路：\n{render_server_lines(current_id, e.lv, e.embyid)}\n\n' \
                    f'**·在【服务器】按钮 - 查看线路和密码**'
             await bot.send_message(current_id, text)
             LOGGER.info(
@@ -248,7 +248,7 @@ async def change_tg(_, call):
                        f'· 用户密码 | `{pwd[0]}`\n' \
                        f'· 安全密码 | `{e2.pwd2}`（仅发送一次）\n' \
                        f'· 到期时间 | `{e2.ex}`\n\n' \
-                       f'· 当前线路：\n{emby_line}\n\n' \
+                       f'· 当前线路：\n{render_server_lines(call.from_user.id, e2.lv, embyid)}\n\n' \
                        f'**·在【服务器】按钮 - 查看线路和密码**'
                 await sendMessage(call,
                                   f'⭕#TG改绑 原emby账户 #{emby_name}\n\n'
@@ -263,7 +263,7 @@ async def change_tg(_, call):
                        f'· 用户密码 | `{e2.pwd}`\n' \
                        f'· 安全密码 | `{pwd[1]}`（仅发送一次）\n' \
                        f'· 到期时间 | `{e2.ex}`\n\n' \
-                       f'· 当前线路：\n{emby_line}\n\n' \
+                       f'· 当前线路：\n{render_server_lines(call.from_user.id, e2.lv, e2.embyid)}\n\n' \
                        f'**·在【服务器】按钮 - 查看线路和密码**'
                 sql_update_emby(Emby.tg == call.from_user.id, embyid=e2.embyid, name=e2.name, pwd=e2.pwd,
                                 pwd2=emby_pwd, lv=e2.lv, cr=e2.cr, ex=e2.ex)
@@ -346,7 +346,7 @@ async def bind_tg(_, call):
                            f'· 用户密码 | `{pwd[0]}`\n' \
                            f'· 安全密码 | `{pwd[1]}`（仅发送一次）\n' \
                            f'· 到期时间 | `{ex}`\n\n' \
-                           f'· 当前线路：\n{emby_line}\n\n' \
+                           f'· 当前线路：\n{render_server_lines(call.from_user.id, "b", embyid)}\n\n' \
                            f'· **在【服务器】按钮 - 查看线路和密码**'
                     sql_update_emby(Emby.tg == call.from_user.id, embyid=embyid, name=emby_name, pwd=pwd[0],
                                     pwd2=pwd[1], lv='b', cr=datetime.now(), ex=ex)
@@ -402,7 +402,7 @@ async def del_emby(_, call):
         return
 
     embyid = call.data.split('-')[1]
-    if await emby.emby_del(emby_id=embyid):
+    if await emby_del_all(tg=call.from_user.id, embyid=embyid):
         sql_update_emby(Emby.embyid == embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
         tem_deluser()
         send1 = await editMessage(call, '🗑️ 好了，已经为您删除...\n愿来日各自安好，山高水长，我们有缘再见！',
@@ -453,7 +453,7 @@ async def reset(_, call):
                 elif mima.text == '/cancel':
                     await mima.delete()
                     await editMessage(call, '**🎯 收到，正在重置ing。。。**')
-                    if await emby.emby_reset(emby_id=e.embyid) is True:
+                    if await emby_reset_all(tg=call.from_user.id, embyid=e.embyid) is True:
                         await editMessage(call, '🕶️ 操作完成！已为您重置密码为 空。', buttons=back_members_ikb)
                         LOGGER.info(f"【重置密码】：{call.from_user.id} 成功重置了空密码！")
                     else:
@@ -463,7 +463,7 @@ async def reset(_, call):
                 else:
                     await mima.delete()
                     await editMessage(call, '**🎯 收到，正在重置ing。。。**')
-                    if await emby.emby_reset(emby_id=e.embyid, new_password=mima.text) is True:
+                    if await emby_reset_all(tg=call.from_user.id, embyid=e.embyid, new_password=mima.text) is True:
                         await editMessage(call, f'🕶️ 操作完成！已为您重置密码为 `{mima.text}`。',
                                           buttons=back_members_ikb)
                         LOGGER.info(f"【重置密码】：{call.from_user.id} 成功重置了密码为 {mima.text} ！")
@@ -637,7 +637,7 @@ async def do_store_reborn(_, call):
             await asyncio.gather(m.delete(), do_store(_, call))
         else:
             sql_update_emby(Emby.tg == call.from_user.id, iv=e.iv - _open.exchange_cost, lv='b')
-            await emby.emby_change_policy(emby_id=e.embyid)
+            await emby_policy_all(tg=call.from_user.id, embyid=e.embyid)
             LOGGER.info(f'【兑换解封】- {call.from_user.id} 已花费 {_open.exchange_cost}{sakura_b},解除封禁')
             await asyncio.gather(m.delete(), do_store(_, call),
                                  sendMessage(call, '解封成功<(￣︶￣)↗[GO!]\n此消息将在20s后自焚', timer=20))

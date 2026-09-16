@@ -3,13 +3,18 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
-from bot import LOGGER, _open, emby_line, config, schedall
+from bot import LOGGER, _open, config, schedall
 from bot.func_helper.concurrency import get_user_lock
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby_create_all, emby_del_all, render_server_lines
 from bot.func_helper.fix_bottons import re_create_ikb
 from bot.func_helper.msg_utils import editMessage, sendMessage
 from bot.func_helper.utils import tem_adduser
-from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
+from bot.sql_helper.sql_emby import (
+    sql_add_server_account,
+    sql_get_emby,
+    sql_update_emby,
+    Emby,
+)
 
 @dataclass
 class RegisterJob:
@@ -110,21 +115,22 @@ class RegisterQueueManager:
                 f'🆗 已进入处理\n\n用户名：**{job.username}**  安全码：**{job.pwd2}** \n\n__正在为您初始化账户，更新用户策略__......',
             )
 
-            data = await emby.emby_create(name=job.username, days=job.days)
-            if not data:
+            result = await emby_create_all(name=job.username, days=job.days, lv='b')
+            if not result.ok:
                 return await self._safe_edit(
                     job.status_message,
                     '**- ❎ 已有此账户名，请重新输入注册\n- ❎ 或检查有无特殊字符\n- ❎ 或emby服务器连接不通，会话已结束！**',
                     re_create_ikb,
                 )
 
-            pwd = data[1]
-            eid = data[0]
-            ex = data[2]
+            pwd, eid, ex = result.password, result.embyid, result.expired
+            for server, server_embyid, status in result.accounts:
+                sql_add_server_account(job.user_id, server, server_embyid, job.username, status)
+            failed_servers = [server for server, _, status in result.accounts if status != 'active']
 
             refreshed = sql_get_emby(tg=job.user_id)
             if not refreshed or refreshed.embyid:
-                await self._rollback_created_account(job.user_id, eid, "创建后检测到账户状态已变化")
+                await self._rollback_created_accounts(job.user_id, result.accounts, "创建后检测到账户状态已变化")
                 return await self._safe_edit(job.status_message, '⚠️ 账户状态已变化，请重新打开面板确认。')
 
             if job.stats:
@@ -152,7 +158,7 @@ class RegisterQueueManager:
                 )
 
             if not updated:
-                await self._rollback_created_account(job.user_id, eid, "创建后写入数据库失败")
+                await self._rollback_created_accounts(job.user_id, result.accounts, "创建后写入数据库失败")
                 return await self._safe_edit(job.status_message, "❌ 账户初始化失败，请稍后重试。")
 
             tem_adduser()
@@ -164,6 +170,12 @@ class RegisterQueueManager:
             else:
                 ex_text = '__无需保号，放心食用__'
 
+            if failed_servers:
+                lines_text = '，'.join(failed_servers)
+                extra_text = f'· 未开通 | `{lines_text}`\n'
+            else:
+                extra_text = ''
+
             await self._safe_edit(
                 job.status_message,
                 f'**▎创建用户成功🎉**\n\n'
@@ -171,8 +183,9 @@ class RegisterQueueManager:
                 f'· 用户密码 | `{pwd}`\n'
                 f'· 安全密码 | `{job.pwd2}`（仅发送一次）\n'
                 f'· 到期时间 | `{ex_text}`\n'
+                f'{extra_text}'
                 f'· 当前线路：\n'
-                f'{emby_line}\n\n'
+                f'{render_server_lines(job.user_id, "b")}\n\n'
                 f'**·【服务器】 - 查看线路和密码**',
             )
 
@@ -182,14 +195,13 @@ class RegisterQueueManager:
             return True
         return await sendMessage(message, text, buttons=buttons)
 
-    async def _rollback_created_account(self, user_id: int, emby_id: str, reason: str):
-        LOGGER.warning(f"注册队列回滚远端账户: tg={user_id}, emby_id={emby_id}, reason={reason}")
-        try:
-            deleted = await emby.emby_del(emby_id=emby_id)
-            if not deleted:
-                LOGGER.error(f"注册队列回滚失败: tg={user_id}, emby_id={emby_id}")
-        except Exception as e:
-            LOGGER.exception(f"注册队列回滚异常: tg={user_id}, emby_id={emby_id}, error={e}")
+    async def _rollback_created_accounts(self, user_id: int, accounts: list, reason: str):
+        created = [f"{server}:{emby_id}" for server, emby_id, _status in accounts if emby_id]
+        LOGGER.warning(f"注册队列回滚远端账户: tg={user_id}, accounts={created}, reason={reason}")
+        if not created:
+            return
+        if not await emby_del_all(tg=user_id):
+            LOGGER.error(f"注册队列回滚失败: tg={user_id}, accounts={created}")
 
 
 _register_queue_manager: Optional[RegisterQueueManager] = None

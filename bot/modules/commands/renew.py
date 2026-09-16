@@ -4,7 +4,7 @@ from pyrogram import filters
 from pyrogram.errors import BadRequest
 
 from bot import bot, prefixes, LOGGER
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby_policy_all
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.msg_utils import deleteMessage, sendMessage
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
@@ -58,10 +58,12 @@ async def renew_user(_, msg):
     start_from = ex_base if (ex_base and ex_base > Now) else Now
     ex_new = start_from + timedelta(days=days)
     lv = e.lv
+    # 非TG账户仅作用于主服，TG账户同步全部服务器
+    target_tg = None if stats == 1 else e.tg
     # 无脑 允许播放
     if ex_new > Now:
         lv = 'a' if e.lv == 'a' else 'b'
-        await emby.emby_change_policy(emby_id=e.embyid, disable=False)
+        await emby_policy_all(tg=target_tg, embyid=e.embyid, disable=False)
 
     # 没有白名单就寄
     elif ex_new < Now:
@@ -69,7 +71,7 @@ async def renew_user(_, msg):
             pass
         else:
             lv = 'c'
-            await emby.emby_change_policy(emby_id=e.embyid, disable=True)
+            await emby_policy_all(tg=target_tg, embyid=e.embyid, disable=True)
 
     if stats == 1:
         expired = 1 if lv == 'c' else 0

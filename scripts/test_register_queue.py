@@ -55,6 +55,7 @@ class RegisterQueueTests(unittest.IsolatedAsyncioTestCase):
         self.users = {}
         self.messages = []
         self.deleted_emby_ids = []
+        self.server_accounts = []
 
         async def fake_edit(message, text, buttons=None):
             message.history.append(("edit", text, buttons))
@@ -86,13 +87,26 @@ class RegisterQueueTests(unittest.IsolatedAsyncioTestCase):
                 setattr(user, key, value)
             return True
 
-        async def fake_emby_create(name, days):
+        async def fake_emby_create_all(name, days, lv=None):
             await asyncio.sleep(0.01)
-            return (f"emby-{name}", "pwd-1234", datetime(2026, 4, 10, 12, 0, 0))
+            return types.SimpleNamespace(
+                ok=True,
+                password="pwd-1234",
+                embyid=f"emby-{name}",
+                expired=datetime(2026, 4, 10, 12, 0, 0),
+                accounts=[("main", f"emby-{name}", "active"), ("srv2", f"emby-{name}-2", "active")],
+            )
 
-        async def fake_emby_del(emby_id):
-            self.deleted_emby_ids.append(emby_id)
+        async def fake_emby_del_all(tg=None, embyid=None):
+            self.deleted_emby_ids.append((tg, embyid))
             return True
+
+        def fake_add_server_account(tg, server, embyid, name=None, status="active"):
+            self.server_accounts.append((tg, server, embyid, status))
+            return True
+
+        def fake_render_server_lines(tg=None, lv=None):
+            return "· main | https://main.line\n· srv2 | https://srv2.line"
 
         def fake_tem_adduser():
             rq._open.tem = int(rq._open.tem or 0) + 1
@@ -103,7 +117,10 @@ class RegisterQueueTests(unittest.IsolatedAsyncioTestCase):
             patch.object(rq, "sql_get_emby", fake_get_emby),
             patch.object(rq, "sql_update_emby", fake_update_emby),
             patch.object(rq, "tem_adduser", fake_tem_adduser),
-            patch.object(rq, "emby", SimpleNamespace(emby_create=fake_emby_create, emby_del=fake_emby_del)),
+            patch.object(rq, "emby_create_all", fake_emby_create_all),
+            patch.object(rq, "emby_del_all", fake_emby_del_all),
+            patch.object(rq, "sql_add_server_account", fake_add_server_account),
+            patch.object(rq, "render_server_lines", fake_render_server_lines),
         ]
         for item in self.patches:
             item.start()
@@ -208,6 +225,10 @@ class RegisterQueueTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(user.lv, "b")
         self.assertEqual(user.us, 0)
         self.assertEqual(rq._open.tem, 1)
+        self.assertEqual(
+            self.server_accounts,
+            [(user_id, "main", "emby-queue-user", "active"), (user_id, "srv2", "emby-queue-user-2", "active")],
+        )
         self.assertEqual(self.manager._reserved_slots, 0)
         self.assertEqual(self.manager._active_jobs, 0)
         self.assertFalse(await self.manager.is_user_busy(user_id))
@@ -248,7 +269,9 @@ class RegisterQueueTests(unittest.IsolatedAsyncioTestCase):
 
             await asyncio.wait_for(self.manager._queue.join(), timeout=2)
 
-        self.assertEqual(self.deleted_emby_ids, ["emby-queue-user-rollback"])
+        self.assertEqual(self.deleted_emby_ids, [(user_id, None)])
+        self.assertEqual(self.server_accounts, [(user_id, "main", "emby-queue-user-rollback", "active"),
+                                                (user_id, "srv2", "emby-queue-user-rollback-2", "active")])
         self.assertEqual(rq._open.tem, 0)
         self.assertEqual(self.manager._reserved_slots, 0)
         self.assertEqual(self.manager._active_jobs, 0)

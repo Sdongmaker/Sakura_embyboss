@@ -3,7 +3,7 @@ import cn2an
 from datetime import datetime, timezone, timedelta
 
 from bot import bot, bot_photo, group, sakura_b, LOGGER, ranks, _open 
-from bot.func_helper.emby import emby
+from bot.func_helper.emby import emby, emby_del_all, emby_policy_all
 from bot.func_helper.utils import convert_to_beijing_time, convert_s, cache, get_users, tem_deluser
 from bot.sql_helper import Session
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_embys, Emby, sql_update_emby
@@ -126,7 +126,7 @@ class Uplaysinfo:
                     ac_date = "None"
                 finally:
                     if ac_date == "None" or ac_date + timedelta(days=15) < now:
-                        if await emby.emby_del(emby_id=e.embyid):
+                        if await emby_del_all(tg=e.tg, embyid=e.embyid):
                             sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d',
                                             cr=None, ex=None)
                             tem_deluser()
@@ -141,7 +141,7 @@ class Uplaysinfo:
                     
                     # print(e.name, ac_date, now)
                     if ac_date + timedelta(days=activity_check_days) < now:
-                        if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
+                        if await emby_policy_all(tg=e.tg, embyid=user["Id"], disable=True):
                             sql_update_emby(Emby.embyid == user["Id"], lv='c')
                             msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} {activity_check_days}天未活跃，禁用\n\n"
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：{activity_check_days}天未活跃")
@@ -149,7 +149,7 @@ class Uplaysinfo:
                             msg += f"**🎂活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n{activity_check_days}天未活跃，禁用失败啦！检查emby连通性\n\n"
                             LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：禁用失败啦！检查emby连通性")
                 except KeyError:
-                    if await emby.emby_change_policy(emby_id=user["Id"], disable=True):
+                    if await emby_policy_all(tg=e.tg, embyid=user["Id"], disable=True):
                         sql_update_emby(Emby.embyid == user["Id"], lv='c')
                         msg += f"**🔋活跃检测** - [{user['Name']}](tg://user?id={e.tg})\n#id{e.tg} 注册后未活跃，禁用\n\n"
                         LOGGER.info(f"【活跃检测】- 禁用账户 {user['Name']} #id{e.tg}：注册后未活跃禁用")
