@@ -40,25 +40,6 @@ async def check_expired():
             except Exception as e:
                 LOGGER.error(e)
 
-        elif _open.exchange and r.iv >= _open.exchange_cost:
-            b = r.iv - _open.exchange_cost
-            if sql_update_emby(Emby.tg == r.tg, ex=ext, iv=b):
-                text = f'【到期检测】\n#id{r.tg} 续期账户 [{r.name}](tg://user?id={r.tg})\n' \
-                       f'在当前时间自动续期30天\n' \
-                       f'📅实时到期: {ext.strftime("%Y-%m-%d %H:%M:%S")}'
-                LOGGER.info(text)
-            else:
-                text = f'【到期检测】\n#id{r.tg} 续期账户 [{r.name}](tg://user?id={r.tg})\n续期失败，请联系闺蜜（管理）'
-                LOGGER.error(text)
-            try:
-                await bot.send_message(r.tg, text)
-            except FloodWait as f:
-                LOGGER.warning(str(f))
-                await sleep(f.value * 1.2)
-                await bot.send_message(r.tg, text)
-            except Exception as e:
-                LOGGER.error(e)
-
         else:
             if await emby_policy_all(tg=r.tg, embyid=r.embyid, disable=True):
                 dead_day = r.ex + timedelta(days=config.freeze_days)
@@ -108,33 +89,12 @@ async def check_expired():
             except Exception as e:
                 LOGGER.error(e)
 
-        elif _open.exchange and c.iv >= _open.exchange_cost:
-            c_iv = c.iv - _open.exchange_cost
-            if await emby_policy_all(tg=c.tg, embyid=c.embyid, disable=False):
-                if sql_update_emby(Emby.tg == c.tg, lv='b', ex=ext, iv=c_iv):
-                    text = f'【到期检测】\n#id{c.tg} 解封账户 [{c.name}](tg://user?id={c.tg})\n在当前时间自动续期30天\n📅实时到期：{ext.strftime("%Y-%m-%d %H:%M:%S")}'
-                    LOGGER.info(text)
-                else:
-                    text = f'【到期检测】\n#id{c.tg} 解封账户 [{c.name}](tg://user?id={c.tg}) 已禁用，数据库写入失败，请联系管理'
-                    LOGGER.warning(text)
-            else:
-                text = f'【到期检测】\n#id{c.tg} 解封账户 [{c.name}](tg://user?id={c.tg}) embyapi操作失败，请联系管理'
-                LOGGER.error(text)
-            try:
-                await bot.send_message(c.tg, text)
-            except FloodWait as f:
-                LOGGER.warning(str(f))
-                await sleep(f.value * 1.2)
-                await bot.send_message(c.tg, text)
-            except Exception as e:
-                LOGGER.error(e)
-
         else:
             delete_day = c.ex + timedelta(days=config.freeze_days)
             if datetime.now() < delete_day:
                 continue
             if await emby_del_all(tg=c.tg, embyid=c.embyid):
-                sql_update_emby(Emby.embyid == c.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
+                sql_update_emby(Emby.embyid == c.embyid, embyid=None, name=None, pwd=None, lv='d', cr=None,
                                 ex=None)
                 tem_deluser()
                 text = f'【到期检测】\n#id{c.tg} 删除账户 [{c.name}](tg://user?id={c.tg})\n已到期 {config.freeze_days} 天，执行清除任务。期待下次与你相遇'

@@ -6,7 +6,6 @@ import asyncio
 from pyrogram import filters
 
 from bot import bot, group, owner, LOGGER
-from bot.func_helper.fix_bottons import dp_g_ikb
 
 # 定义一个集合来存储已经处理过的群组的 id
 processed_groups = set()
@@ -36,8 +35,7 @@ async def anti_use_bot(_, msg):
                                    f"[`{msg.from_user.id}`]试图将bot拉入 `{msg.chat.id}` 已被发现")
             asyncio.create_task(leave_bot(msg.chat.id))
             await bot.send_message(msg.chat.id,
-                                   f'❎ 这并非一个授权群组！！！[`{msg.chat.id}`]\n\n本bot将在 **30s** 自动退出如有疑问请联系开发👇',
-                                   reply_markup=dp_g_ikb)
+                                   f'❎ 这并非一个授权群组！！！[`{msg.chat.id}`]\n\n本bot将在 **30s** 自动退出')
             LOGGER.info(f"【[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})"
                         f"[`{msg.from_user.id}`]试图将bot拉入 `{msg.chat.id}` 已被发现】")
         except Exception as e:
@@ -49,8 +47,7 @@ async def anti_use_bot(_, msg):
             await bot.send_message(chat_id=owner, text=f'有坏蛋 试图将bot拉入 `{msg.chat.id}` 已被发现')
             asyncio.create_task(leave_bot(msg.chat.id))
             await bot.send_message(msg.chat.id,
-                                   f'❎ 这并非一个授权群组！！！[`{msg.chat.id}`]\n\n本bot将在 **30s** 自动退出如有疑问请联系开发👇',
-                                   reply_markup=dp_g_ikb)
+                                   f'❎ 这并非一个授权群组！！！[`{msg.chat.id}`]\n\n本bot将在 **30s** 自动退出')
             LOGGER.info(f"【有坏蛋试图将bot拉入 `{msg.chat.id}` 已被发现】")
         except Exception as e:
             # 记录异常信息

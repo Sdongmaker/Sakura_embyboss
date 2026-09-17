@@ -56,7 +56,7 @@ async def sync_emby_group(_, msg):
             b += 1
             if i.tg not in members:
                 if await emby_del_all(tg=i.tg, embyid=i.embyid):
-                    sql_update_emby(Emby.embyid == i.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
+                    sql_update_emby(Emby.embyid == i.embyid, embyid=None, name=None, pwd=None, lv='d', cr=None,
                                     ex=None)
                     tem_deluser()
                     a += 1
@@ -315,7 +315,7 @@ async def restore_from_db(_, msg):
                         success_count += 1
                         LOGGER.info(f"恢复 #id{embyuser.tg} - [{embyuser.name}](tg://user?id={embyuser.tg}) 成功")
                         try:
-                            user_notification = f'🤖 #恢复成功：id：{embyuser.tg} \n\n🧬您的账号`{embyuser.name}`已恢复成功 ！\n🪅密码为：`{pwd}`\n🔮安全码为：`{embyuser.pwd2}`\n'
+                            user_notification = f'🤖 #恢复成功：id：{embyuser.tg} \n\n🧬您的账号`{embyuser.name}`已恢复成功 ！\n🪅密码为：`{pwd}`\n'
                             await bot.send_message(tg, user_notification)
                         except FloodWait as f:
                             LOGGER.warning(str(f))

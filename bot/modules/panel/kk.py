@@ -202,7 +202,7 @@ async def close_emby(_, call):
         return await editMessage(call, f'💢 ta 还没有注册账户。', timer=60)
 
     if await emby_del_all(tg=b, embyid=e.embyid):
-        sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+        sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, lv='d', cr=None, ex=None)
         tem_deluser()
         await editMessage(call,
                           f'🎯 done，管理员 [{call.from_user.first_name}](tg://user?id={call.from_user.id})\n等级：{e.lv} - [{first.first_name}](tg://user?id={b}) '

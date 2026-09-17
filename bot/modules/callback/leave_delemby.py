@@ -19,7 +19,7 @@ async def leave_del_emby(_, event: ChatMemberUpdated):
                 if e is None or e.embyid is None:
                     return
                 if await emby_del_all(tg=user_id, embyid=e.embyid):
-                    sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+                    sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, lv='d', cr=None, ex=None)
                     tem_deluser()
                     LOGGER.info(
                         f'【退群删号】- {user_fname}-{user_id} 已经离开了群组，咕噜噜，ta的账户被吃掉啦！')
@@ -46,7 +46,7 @@ async def leave_del_emby(_, event: ChatMemberUpdated):
                 if e is None or e.embyid is None:
                     return
                 if await emby_del_all(tg=user_id, embyid=e.embyid):
-                    sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None,
+                    sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, lv='d', cr=None,
                                     ex=None)
                     tem_deluser()
                     LOGGER.info(

@@ -8,32 +8,29 @@
 import asyncio
 import datetime
 import math
-import random
 from datetime import timedelta, datetime
-from bot.schemas import ExDate, Yulv
-from bot import bot, LOGGER, _open, sakura_b, ranks, group, config, bot_name, schedall
+from bot import bot, LOGGER, _open, ranks, group, config, bot_name
 from pyrogram import filters
 from bot.func_helper.concurrency import get_user_lock
 from bot.func_helper.emby import emby, emby_del_all, emby_policy_all, emby_reset_all, render_server_lines
 from bot.func_helper.register_queue import get_register_queue_manager, RegisterJob
 from bot.func_helper.filters import user_in_group_on_filter
-from bot.func_helper.utils import members_info, cr_link_one, judge_admins, tem_deluser, pwd_create
+from bot.func_helper.utils import members_info, judge_admins, tem_deluser
 from bot.func_helper.fix_bottons import members_ikb, back_members_ikb, del_me_ikb, re_delme_ikb, \
     re_reset_ikb, re_changetg_ikb, emby_block_ikb, user_emby_block_ikb, user_emby_unblock_ikb, re_exchange_b_ikb, \
-    store_ikb, re_bindtg_ikb, close_it_ikb, store_query_page, re_born_ikb, send_changetg_ikb, favorites_page_ikb
+    re_bindtg_ikb, close_it_ikb, send_changetg_ikb, favorites_page_ikb
 from bot.func_helper.msg_utils import callAnswer, editMessage, callListen, sendMessage, ask_return, deleteMessage
 from bot.modules.commands import p_start
 from bot.modules.commands.partition_code import _redeem_partition_code
 from bot.modules.commands.exchange import rgs_code
-from bot.sql_helper.sql_code import sql_count_c_code
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 from bot.sql_helper.sql_emby2 import sql_get_emby2, sql_delete_emby2
 
 # 创号函数
 async def create_user(_, call, stats):
     msg = await ask_return(call,
-                           text='🤖**注意：您已进入注册状态:\n\n• 请在2min内输入 `[用户名][空格][安全码]`\n• 举个例子🌰：`苏苏 1234`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
-                                '\n• 安全码为敏感操作时附加验证，请填入最熟悉的数字4~6位；退出请点 /cancel', timer=120,
+                           text='🤖**注意：您已进入注册状态:\n\n• 请在2min内输入 `[用户名]`\n• 举个例子🌰：`苏苏`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
+                                '\n• 账户密码由系统生成并只发送一次，请及时保存；退出请点 /cancel', timer=120,
                            button=close_it_ikb)
     if not msg:
         return
@@ -42,7 +39,7 @@ async def create_user(_, call, stats):
         return await asyncio.gather(msg.delete(), bot.delete_messages(msg.from_user.id, msg.id - 1))
 
     try:
-        emby_name, emby_pwd2 = msg.text.split()
+        emby_name, = msg.text.split()
     except (IndexError, ValueError):
         await msg.reply(f'⚠️ 输入格式错误\n\n`{msg.text}`\n **会话已结束！**')
     else:
@@ -58,12 +55,11 @@ async def create_user(_, call, stats):
             days = _open.open_us if stats else int(current.us)
             queue = get_register_queue_manager()
             send = await msg.reply(
-                f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n__正在加入注册队列__......')
+                f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}** \n\n__正在加入注册队列__......')
             ok, reason, position = await queue.enqueue(
                 RegisterJob(
                     user_id=call.from_user.id,
                     username=emby_name,
-                    pwd2=emby_pwd2,
                     stats=stats,
                     days=days,
                     status_message=send,
@@ -72,7 +68,7 @@ async def create_user(_, call, stats):
             if ok:
                 return await editMessage(
                     send,
-                    f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}**  安全码：**{emby_pwd2}** \n\n'
+                    f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}** \n\n'
                     f'__已进入注册队列，当前排队序号：{position}__\n'
                     f'请耐心等待，创建完成后我会在这里直接通知你。',
                 )
@@ -92,11 +88,11 @@ async def members(_, call):
     if not data:
         return await callAnswer(call, '⚠️ 数据库没有你，请重新 /start录入', True)
     await callAnswer(call, f"✅ 用户界面")
-    name, lv, ex, us, embyid, pwd2 = data
+    name, lv, ex, us, embyid = data
     text = f"▎__欢迎进入用户面板！{call.from_user.first_name}__\n\n" \
            f"**· 🆔 用户のID** | `{call.from_user.id}`\n" \
            f"**· 📊 当前状态** | {lv}\n" \
-           f"**· 🍒 积分{sakura_b}** | {us}\n" \
+           f"**· ⏳ 剩余天数** | {us}\n" \
            f"**· 💠 账号名称** | [{name}](tg://user?id={call.from_user.id})\n" \
            f"**· 🚨 到期时间** | {ex}"
     if not embyid:
@@ -167,22 +163,19 @@ async def change_tg(_, call):
         if not e or not e.embyid: return await bot.send_message(current_id, '⁉️ 出错了，您所换绑账户已不存在。')
 
         # 清空原账号信息但保留tg
-        if sql_update_emby(Emby.tg == replace_id, embyid=None, name=None, pwd=None, pwd2=None,
-                          lv='d', cr=None, ex=None, us=0, iv=0, ch=None):
+        if sql_update_emby(Emby.tg == replace_id, embyid=None, name=None, pwd=None,
+                          lv='d', cr=None, ex=None, us=0, ch=None):
             LOGGER.info(f'【TG改绑】清空原账户 id{e.tg} 成功')
         else:
             await bot.send_message(current_id, "🍰 **⭕#TG改绑 原账户清空错误，请联系闺蜜（管理）！**")
             LOGGER.error(f"【TG改绑】清空原账户 id{e.tg} 失败, Emby:{e.name}未转移...")
             return
 
-        # 将原账号的币值转移到新账号
-        old_iv = e.iv
-        if sql_update_emby(Emby.tg == current_id, embyid=e.embyid, name=e.name, pwd=e.pwd, pwd2=e.pwd2,
-                           lv=e.lv, cr=e.cr, ex=e.ex, iv=old_iv):
+        if sql_update_emby(Emby.tg == current_id, embyid=e.embyid, name=e.name, pwd=e.pwd,
+                           lv=e.lv, cr=e.cr, ex=e.ex):
             text = f'⭕ 请接收您的信息！\n\n' \
                    f'· 用户名称 | `{e.name}`\n' \
                    f'· 用户密码 | `{e.pwd}`\n' \
-                   f'· 安全密码 | `{e.pwd2}`（仅发送一次）\n' \
                    f'· 到期时间 | `{e.ex}`\n\n' \
                    f'· 当前线路：\n{render_server_lines(current_id, e.lv, e.embyid)}\n\n' \
                    f'**·在【服务器】按钮 - 查看线路和密码**'
@@ -234,19 +227,18 @@ async def change_tg(_, call):
             if e2 is None:
                 return await editMessage(call, f'❓ 未查询到bot数据中名为 {emby_name} 的账户，请使用 **绑定TG** 功能。',
                                          buttons=re_bindtg_ikb)
-            if emby_pwd != e2.pwd2:
+            if emby_pwd != e2.pwd:
                 success, embyid = await emby.authority_account(tg_id=call.from_user.id, username=emby_name, password=emby_pwd)
                 if not success:
                     return await editMessage(call,
                                              f'💢 安全码or密码验证错误，请检查输入\n{emby_name} {emby_pwd} 是否正确。',
                                              buttons=re_changetg_ikb)
                 sql_update_emby(Emby.tg == call.from_user.id, embyid=embyid, name=e2.name, pwd=emby_pwd,
-                                pwd2=e2.pwd2, lv=e2.lv, cr=e2.cr, ex=e2.ex)
+                                lv=e2.lv, cr=e2.cr, ex=e2.ex)
                 sql_delete_emby2(embyid=e2.embyid)
                 text = f'⭕ 账户 {emby_name} 的密码验证成功！\n\n' \
                        f'· 用户名称 | `{emby_name}`\n' \
                        f'· 用户密码 | `{pwd[0]}`\n' \
-                       f'· 安全密码 | `{e2.pwd2}`（仅发送一次）\n' \
                        f'· 到期时间 | `{e2.ex}`\n\n' \
                        f'· 当前线路：\n{render_server_lines(call.from_user.id, e2.lv, embyid)}\n\n' \
                        f'**·在【服务器】按钮 - 查看线路和密码**'
@@ -257,16 +249,15 @@ async def change_tg(_, call):
                 LOGGER.info(f'【TG改绑】 emby账户 {emby_name} 绑定至 {call.from_user.first_name}-{call.from_user.id}')
                 await editMessage(call, text)
 
-            elif emby_pwd == e2.pwd2:
+            elif emby_pwd == e2.pwd:
                 text = f'⭕ 账户 {emby_name} 的安全码验证成功！\n\n' \
                        f'· 用户名称 | `{emby_name}`\n' \
                        f'· 用户密码 | `{e2.pwd}`\n' \
-                       f'· 安全密码 | `{pwd[1]}`（仅发送一次）\n' \
                        f'· 到期时间 | `{e2.ex}`\n\n' \
                        f'· 当前线路：\n{render_server_lines(call.from_user.id, e2.lv, e2.embyid)}\n\n' \
                        f'**·在【服务器】按钮 - 查看线路和密码**'
                 sql_update_emby(Emby.tg == call.from_user.id, embyid=e2.embyid, name=e2.name, pwd=e2.pwd,
-                                pwd2=emby_pwd, lv=e2.lv, cr=e2.cr, ex=e2.ex)
+                                lv=e2.lv, cr=e2.cr, ex=e2.ex)
                 sql_delete_emby2(embyid=e2.embyid)
                 await sendMessage(call,
                                   f'⭕#TG改绑 原emby账户 #{emby_name}\n\n'
@@ -277,7 +268,7 @@ async def change_tg(_, call):
 
         else:
             if call.from_user.id == e.tg: return await editMessage(call, '⚠️ 您已经拥有账户。')
-            if emby_pwd != e.pwd2:
+            if emby_pwd != e.pwd:
                 success, embyid = await emby.authority_account(tg_id=call.from_user.id, username=emby_name, password=emby_pwd)
                 if not success:
                     return await editMessage(call,
@@ -338,18 +329,16 @@ async def bind_tg(_, call):
                                              f'🍥 很遗憾绑定失败，您输入的账户密码不符（{emby_name} - {emby_pwd}），请仔细确认后再次尝试',
                                              buttons=re_bindtg_ikb)
                 else:
-                    security_pwd = await pwd_create(4)
-                    pwd = ['空（直接回车）', security_pwd] if emby_pwd == 'None' else [emby_pwd, emby_pwd]
+                    pwd_text = '空（直接回车）' if emby_pwd == 'None' else emby_pwd
                     ex = (datetime.now() + timedelta(days=30))
                     text = f'✅ 账户 {emby_name} 成功绑定\n\n' \
                            f'· 用户名称 | `{emby_name}`\n' \
-                           f'· 用户密码 | `{pwd[0]}`\n' \
-                           f'· 安全密码 | `{pwd[1]}`（仅发送一次）\n' \
+                           f'· 用户密码 | `{pwd_text}`\n' \
                            f'· 到期时间 | `{ex}`\n\n' \
                            f'· 当前线路：\n{render_server_lines(call.from_user.id, "b", embyid)}\n\n' \
                            f'· **在【服务器】按钮 - 查看线路和密码**'
-                    sql_update_emby(Emby.tg == call.from_user.id, embyid=embyid, name=emby_name, pwd=pwd[0],
-                                    pwd2=pwd[1], lv='b', cr=datetime.now(), ex=ex)
+                    sql_update_emby(Emby.tg == call.from_user.id, embyid=embyid, name=emby_name, pwd=pwd_text,
+                                    lv='b', cr=datetime.now(), ex=ex)
                     await editMessage(call, text)
                     await sendMessage(call,
                                       f'⭕#新TG绑定 原emby账户 #{emby_name} \n\n已绑定至 [{call.from_user.first_name}](tg://user?id={call.from_user.id}) - {call.from_user.id}',
@@ -371,8 +360,8 @@ async def del_me(_, call):
     else:
         if e.embyid is None:
             return await callAnswer(call, '未查询到账户，不许乱点！💢', True)
-        await callAnswer(call, "🔴 请先进行 安全码 验证")
-        edt = await editMessage(call, '**🔰账户安全验证**：\n\n👮🏻验证是否本人进行敏感操作，请对我发送您设置的安全码。倒计时 120s\n'
+        await callAnswer(call, "🔴 请先进行 密码 验证")
+        edt = await editMessage(call, '**🔰账户安全验证**：\n\n👮🏻验证是否本人进行敏感操作，请对我发送您的账号密码。倒计时 120s\n'
                                       '🛑 **停止请点 /cancel**')
         if edt is False:
             return
@@ -385,14 +374,15 @@ async def del_me(_, call):
             await m.delete()
             await editMessage(call, '__您已经取消输入__ **会话已结束！**', buttons=back_members_ikb)
         else:
-            if m.text == e.pwd2:
+            factor = (e.pwd or '').strip()
+            if factor and m.text.strip() != factor:
+                await m.delete()
+                await editMessage(call, '**💢 验证不通过，密码错误。**', re_delme_ikb)
+            else:
                 await m.delete()
                 await editMessage(call, '**⚠️ 如果您的账户到期，我们将封存您的账户，但仍保留数据'
                                         '而如果您选择删除，这意味着服务器会将您此前的活动数据全部删除。\n**',
                                   buttons=del_me_ikb(e.embyid))
-            else:
-                await m.delete()
-                await editMessage(call, '**💢 验证不通过，安全码错误。**', re_delme_ikb)
 
 
 @bot.on_callback_query(filters.regex('delemby'))
@@ -403,7 +393,7 @@ async def del_emby(_, call):
 
     embyid = call.data.split('-')[1]
     if await emby_del_all(tg=call.from_user.id, embyid=embyid):
-        sql_update_emby(Emby.embyid == embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+        sql_update_emby(Emby.embyid == embyid, embyid=None, name=None, pwd=None, lv='d', cr=None, ex=None)
         tem_deluser()
         send1 = await editMessage(call, '🗑️ 好了，已经为您删除...\n愿来日各自安好，山高水长，我们有缘再见！',
                                   buttons=back_members_ikb)
@@ -425,8 +415,8 @@ async def reset(_, call):
     if e.embyid is None:
         return await bot.answer_callback_query(call.id, '未查询到账户，不许乱点！💢', show_alert=True)
     else:
-        await callAnswer(call, "🔴 请先进行 安全码 验证")
-        send = await editMessage(call, '**🔰账户安全验证**：\n\n 👮🏻验证是否本人进行敏感操作，请对我发送您设置的安全码。倒计时 120 s\n'
+        await callAnswer(call, "🔴 请先进行 密码 验证")
+        send = await editMessage(call, '**🔰账户安全验证**：\n\n 👮🏻验证是否本人进行敏感操作，请对我发送您的账号密码。倒计时 120 s\n'
                                        '🛑 **停止请点 /cancel**')
         if send is False:
             return
@@ -439,9 +429,10 @@ async def reset(_, call):
             await m.delete()
             await editMessage(call, '__您已经取消输入__ **会话已结束！**', buttons=back_members_ikb)
         else:
-            if m.text != e.pwd2:
+            factor = (e.pwd or '').strip()
+            if factor and m.text.strip() != factor:
                 await m.delete()
-                await editMessage(call, f'**💢 验证不通过，{m.text} 安全码错误。**', buttons=re_reset_ikb)
+                await editMessage(call, f'**💢 验证不通过，{m.text} 密码错误。**', buttons=re_reset_ikb)
             else:
                 await m.delete()
                 await editMessage(call, '🎯 请在 120s内 输入你要更新的密码,不限制中英文，emoji。特殊字符部分支持，其他概不负责。\n\n'
@@ -608,139 +599,6 @@ async def call_wl_exchange(_, call):
         await rgs_code(_, msg, register_code=msg.text)
 
 
-@bot.on_callback_query(filters.regex('storeall'))
-async def do_store(_, call):
-    await asyncio.gather(callAnswer(call, '✔️ 欢迎进入兑换商店'),
-                         editMessage(call,
-                                     f'**🏪 请选择想要使用的服务：**\n\n🤖 自动{sakura_b}续期状态：{_open.exchange} {_open.exchange_cost}/月',
-                                     buttons=store_ikb()))
-
-
-@bot.on_callback_query(filters.regex('store-reborn'))
-async def do_store_reborn(_, call):
-    e = sql_get_emby(tg=call.from_user.id)
-    if not e:
-        return
-    if not e.embyid or not e.name:
-        return await callAnswer(call, '❌ 未查询到账户，不许乱点！', True)
-    await callAnswer(call,
-                     '✔️ 请仔细阅读：\n\n本功能仅为 因未活跃而被封禁的用户解封使用，到期状态下封禁的账户请勿使用，以免浪费积分。',
-                     True)
-    if all([e.lv == 'c', e.iv >= _open.exchange_cost, schedall.low_activity]):
-        await editMessage(call,
-                          f'🏪 您已满足基础要求，此次将花费 {_open.exchange_cost}{sakura_b} 解除未活跃的封禁，确认请回复 /ok，退出 /cancel')
-        m = await callListen(call, 120, buttons=re_born_ikb)
-        if m is False:
-            return
-
-        elif m.text == '/cancel':
-            await asyncio.gather(m.delete(), do_store(_, call))
-        else:
-            sql_update_emby(Emby.tg == call.from_user.id, iv=e.iv - _open.exchange_cost, lv='b')
-            await emby_policy_all(tg=call.from_user.id, embyid=e.embyid)
-            LOGGER.info(f'【兑换解封】- {call.from_user.id} 已花费 {_open.exchange_cost}{sakura_b},解除封禁')
-            await asyncio.gather(m.delete(), do_store(_, call),
-                                 sendMessage(call, '解封成功<(￣︶￣)↗[GO!]\n此消息将在20s后自焚', timer=20))
-    else:
-        await sendMessage(call, '❌ 不满足以下要求！ヘ(￣ω￣ヘ)\n\n'
-                                '1. 被封禁账户\n'
-                                f'2. 至少持有 {_open.exchange_cost}{sakura_b}\n'
-                                f'3. 【定时策略】活跃检测开启\n'
-                                f'此消息将在20s后自焚', timer=20)
-
-
-@bot.on_callback_query(filters.regex('store-whitelist'))
-async def do_store_whitelist(_, call):
-    if _open.whitelist:
-        e = sql_get_emby(tg=call.from_user.id)
-        if e is None:
-            return
-        if not e.embyid or not e.name:
-            return await callAnswer(call, '❌ 未查询到账户，不许乱点！', True)
-        if e.iv < _open.whitelist_cost or e.lv == 'a':
-            return await callAnswer(call,
-                                    f'🏪 兑换规则：\n当前兑换白名单需要 {_open.whitelist_cost} {sakura_b}，已有白名单无法再次消费。勉励',
-                                    True)
-        await callAnswer(call, f'🏪 您已满足 {_open.whitelist_cost} {sakura_b}要求', True)
-        sql_update_emby(Emby.tg == call.from_user.id, lv='a', iv=e.iv - _open.whitelist_cost)
-        send = await call.message.edit(f'**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n'
-                                       f'🎉 恭喜[{call.from_user.first_name}](tg://user?id={call.from_user.id}) 今日晋升，{ranks["logo"]}白名单')
-        await send.forward(group[0])
-        LOGGER.info(f'【兑换白名单】- {call.from_user.id} 已花费 9999{sakura_b}，晋升白名单')
-    else:
-        await callAnswer(call, '❌ 管理员未开启此兑换', True)
-
-
-@bot.on_callback_query(filters.regex('store-invite'))
-async def do_store_invite(_, call):
-    if _open.invite:
-        e = sql_get_emby(tg=call.from_user.id)
-        if not e:
-            return
-        # 用户等级为 a（白名单） b(普通用户) c(已禁用) d（未注册用户）
-        # 比如当 _open.invite_lv 设置为 d 时，用户等级为 小于等于d 的用户可以兑换，否则无法兑换
-        if e.lv > _open.invite_lv:
-            return await callAnswer(call, '❌ 账号等级不足，无法兑换', True)
-        if e.iv < _open.invite_cost:
-            return await callAnswer(call,
-                                    f'🏪 兑换规则：\n当前兑换注册码至少需要 {_open.invite_cost} {sakura_b}。你的账户只有 {e.iv} {sakura_b}，勉励',
-                                    True)
-        await editMessage(call,
-                          f'🎟️ 请回复创建 [类型] [数量] [模式]\n\n'
-                          f'**类型**：月mon，季sea，半年half，年year\n'
-                          f'**模式**： link -深链接 | code -码\n'
-                          # f'**续期**： F - 注册码，T - 续期码\n'
-                          f'**示例**：`mon 1 link` 记作 1条 月度注册链接 \n'
-                          f'**示例**：`sea 1 code` 记作 1条 季度注册码\n'
-                          f'**注意**：兑率 30天 = {_open.invite_cost}{sakura_b}\n'
-                          f'__取消本次操作，请 /cancel__')
-        content = await callListen(call, 120)
-        if content is False:
-            return await do_store(_, call)
-
-        elif content.text == '/cancel':
-            return await asyncio.gather(content.delete(), do_store(_, call))
-        try:
-            times, count, method = content.text.split()
-            days = getattr(ExDate(), times)
-            count = int(count)
-            cost = math.floor((days * count / 30) * _open.invite_cost)
-            if e.iv < cost:
-                return await asyncio.gather(content.delete(),
-                                            sendMessage(call,
-                                                        f'您只有 {e.iv}{sakura_b}，而您需要花费 {cost}，超前消费是不可取的哦！？',
-                                                        timer=10),
-                                            do_store(_, call))
-            method = getattr(ExDate(), method)
-        except (AttributeError, ValueError, IndexError):
-            return await asyncio.gather(sendMessage(call, f'⚠️ 检查输入，格式似乎有误\n{content.text}', timer=10),
-                                        do_store(_, call),
-                                        content.delete())
-        else:
-            sql_update_emby(Emby.tg == call.from_user.id, iv=e.iv - cost)
-            links = await cr_link_one(call.from_user.id, days, count, days, method)
-            if links is None:
-                return await editMessage(call, '⚠️ 数据库插入失败，请检查数据库')
-            links = f"🎯 {bot_name}已为您生成了 **{days}天** 注册码 {count} 个\n\n" + links
-            chunks = [links[i:i + 4096] for i in range(0, len(links), 4096)]
-            for chunk in chunks:
-                await sendMessage(content, chunk)
-            LOGGER.info(f"【注册码兑换】：{bot_name}已为 {content.from_user.id} 兑换了 {count} 个 {days} 天注册码")
-    else:
-        await callAnswer(call, '❌ 管理员未开启此兑换', True)
-
-
-@bot.on_callback_query(filters.regex('store-query'))
-async def do_store_query(_, call):
-    a, b = sql_count_c_code(tg_id=call.from_user.id)
-    if not a:
-        return await callAnswer(call, '❌ 空', True)
-    try:
-        number = int(call.data.split(':')[1])
-    except (IndexError, KeyError, ValueError):
-        number = 1
-    await callAnswer(call, '📜 正在翻页')
-    await editMessage(call, text=a[number - 1], buttons=await store_query_page(b, number))
 @bot.on_callback_query(filters.regex('^my_favorites|^page_my_favorites:'))
 async def my_favorite(_, call):
     # 获取页码

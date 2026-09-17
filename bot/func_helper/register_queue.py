@@ -20,7 +20,6 @@ from bot.sql_helper.sql_emby import (
 class RegisterJob:
     user_id: int
     username: str
-    pwd2: str
     stats: bool
     days: int
     status_message: object
@@ -112,7 +111,7 @@ class RegisterQueueManager:
 
             await self._safe_edit(
                 job.status_message,
-                f'🆗 已进入处理\n\n用户名：**{job.username}**  安全码：**{job.pwd2}** \n\n__正在为您初始化账户，更新用户策略__......',
+                f'🆗 已进入处理\n\n用户名：**{job.username}** \n\n__正在为您初始化账户，更新用户策略__......',
             )
 
             result = await emby_create_all(name=job.username, days=job.days, lv='b')
@@ -139,7 +138,6 @@ class RegisterQueueManager:
                     embyid=eid,
                     name=job.username,
                     pwd=pwd,
-                    pwd2=job.pwd2,
                     lv='b',
                     cr=datetime.now(),
                     ex=ex,
@@ -150,7 +148,6 @@ class RegisterQueueManager:
                     embyid=eid,
                     name=job.username,
                     pwd=pwd,
-                    pwd2=job.pwd2,
                     lv='b',
                     cr=datetime.now(),
                     ex=ex,
@@ -180,8 +177,7 @@ class RegisterQueueManager:
                 job.status_message,
                 f'**▎创建用户成功🎉**\n\n'
                 f'· 用户名称 | `{job.username}`\n'
-                f'· 用户密码 | `{pwd}`\n'
-                f'· 安全密码 | `{job.pwd2}`（仅发送一次）\n'
+                f'· 用户密码 | `{pwd}`（仅发送一次）\n'
                 f'· 到期时间 | `{ex_text}`\n'
                 f'{extra_text}'
                 f'· 当前线路：\n'

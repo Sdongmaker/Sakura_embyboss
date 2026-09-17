@@ -31,7 +31,7 @@ async def rmemby_user(_, msg):
     if e.embyid is not None:
         first = await bot.get_chat(e.tg)
         if await emby_del_all(tg=e.tg, embyid=e.embyid):
-            sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, pwd2=None, lv='d', cr=None, ex=None)
+            sql_update_emby(Emby.embyid == e.embyid, embyid=None, name=None, pwd=None, lv='d', cr=None, ex=None)
             tem_deluser()
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             try:

@@ -5,7 +5,7 @@ import requests
 from pyrogram import filters
 from pyrogram.types import Message
 
-from bot import bot, sakura_b, schedall, save_config, prefixes, _open, owner, LOGGER, auto_update, group
+from bot import bot, schedall, save_config, prefixes, owner, LOGGER, auto_update, group
 from bot.func_helper.filters import admins_on_filter, user_in_group_on_filter
 from bot.func_helper.fix_bottons import sched_buttons, plays_list_button
 from bot.func_helper.msg_utils import callAnswer, editMessage, deleteMessage, warmup_peer_cache
@@ -142,11 +142,9 @@ async def shou_dong_uplayrank(_, msg):
     await deleteMessage(msg)
     try:
         days = int(msg.command[1])
-        await user_plays_rank(days=days, uplays=False)
+        await user_plays_rank(days=days)
     except (IndexError, ValueError):
-        await msg.reply(
-            f"🔔 请输入 `/uranks 天数`，此运行手动不会影响{sakura_b}的结算（仅定时运行时结算），放心使用。\n"
-            f"定时结算状态: {_open.uplays}")
+        await msg.reply("🔔 请输入 `/uranks 天数`")
 @bot.on_message(filters.command('sync_favorites', prefixes) & admins_on_filter)
 async def sync_favorites_admin(_, msg):
     await deleteMessage(msg)
@@ -173,7 +171,7 @@ async def restart_bot(_, msg):
 async def page_uplayrank(_, call):
     j, days = map(int, call.data.split(":")[1].split('_'))
     await callAnswer(call, f'将为您翻到第 {j} 页')
-    a, b, c = await Uplaysinfo.users_playback_list(days)
+    a, b = await Uplaysinfo.users_playback_list(days)
     if not a:
         return await callAnswer(call, f'🍥 获取过去{days}天UserPlays失败了嘤嘤嘤 ~ 手动重试', True)
     button = await plays_list_button(b, j, days)

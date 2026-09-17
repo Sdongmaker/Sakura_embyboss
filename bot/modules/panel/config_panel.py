@@ -6,7 +6,7 @@
 """
 from datetime import datetime
 
-from bot import bot, prefixes, bot_photo, Now, LOGGER, config, save_config, _open, auto_update, moviepilot, sakura_b
+from bot import bot, prefixes, bot_photo, Now, LOGGER, config, save_config, _open, auto_update, moviepilot
 from pyrogram import filters
 
 from bot.func_helper.filters import admins_on_filter
@@ -609,7 +609,6 @@ async def mp_config_panel(_, call):
     await editMessage(call, 
                      "⚙️ MoviePilot 设置面板\n\n"
                      f"当前状态：{'已开启' if moviepilot.status else '已关闭'}\n"
-                     f"点播价格：{moviepilot.price} {sakura_b}/GB\n"
                      f"用户权限：{lv_text}可使用\n"
                      f"日志频道：{moviepilot.download_log_chatid or '未设置'}",
                      buttons=mp_config_ikb())
@@ -631,32 +630,6 @@ async def set_mp_status(_, call):
         await mp_config_panel(_, call)
     except Exception as e:
         LOGGER.error(f"设置点播状态时出错: {str(e)}")
-
-@bot.on_callback_query(filters.regex('^set_mp_price$') & admins_on_filter)
-async def set_mp_price(_, call):
-    """设置点播价格"""
-    await callAnswer(call, '💰 设置点播价格')
-    await editMessage(call,
-                     f"💰 设置点播价格\n\n"
-                     f"当前价格：{moviepilot.price} {sakura_b}/GB\n"
-                     f"请输入新的价格数值\n"
-                     f"取消请点 /cancel")
-    
-    txt = await callListen(call, 120)
-    if txt is False or txt.text == '/cancel':
-        return await mp_config_panel(_, call)
-    
-    try:
-        price = int(txt.text)
-        if price < 0:
-            raise ValueError
-        moviepilot.price = price
-        save_config()
-        await editMessage(call, f"✅ 点播价格已设置为 {price} {sakura_b}/GB")
-        await mp_config_panel(_, call)
-    except ValueError:
-        await editMessage(call, "❌ 请输入有效的数字")
-        await mp_config_panel(_, call)
 
 @bot.on_callback_query(filters.regex('set_mp_lv') & admins_on_filter)
 async def set_mp_lv(_, call):
@@ -710,22 +683,6 @@ async def open_leave_ban(_, call):
     LOGGER.info(log_message)
 
 
-@bot.on_callback_query(filters.regex('set_uplays') & admins_on_filter)
-async def set_user_playrank(_, call):
-    _open.uplays = not _open.uplays
-    if not _open.uplays:
-        message = '👮🏻‍♂️ 您已关闭 观影榜结算，自动召唤观影榜将不被计算积分'
-        log_message = f"【admin】：管理员 {call.from_user.first_name} 已关闭 观影榜结算"
-    else:
-        message = '👮🏻‍♂️ 您已开启 观影榜结算，自动召唤观影榜将会被计算积分'
-        log_message = f"【admin】：管理员 {call.from_user.first_name} 已启用 观影榜结算"
-
-    await callAnswer(call, message, True)
-    await config_p_re(_, call)
-    save_config()
-    LOGGER.info(log_message)
-
-
 @bot.on_callback_query(filters.regex('set_kk_gift_days') & admins_on_filter)
 async def set_kk_gift_days(_, call):
     await callAnswer(call, '📌 设置赠送资格天数')
@@ -770,34 +727,6 @@ async def set_fuxx_pitao(_, call):
     await config_p_re(_, call)
     save_config()
     LOGGER.info(log_message)
-@bot.on_callback_query(filters.regex('set_red_envelope_status') & admins_on_filter)
-async def set_red_envelope_status(_, call):
-    config.red_envelope.status = not config.red_envelope.status
-    if config.red_envelope.status:
-        message = '👮🏻‍♂️ 您已开启 红包功能，现在用户可以发送红包了'
-        log_message = f"【admin】：管理员 {call.from_user.first_name} 已调整 红包功能 True"
-    else:
-        message = '👮🏻‍♂️ 您已关闭 红包功能，现在用户不能发送红包了'
-        log_message = f"【admin】：管理员 {call.from_user.first_name} 已调整 红包功能 False"
-    await callAnswer(call, message, True)
-    await config_p_re(_, call)
-    save_config()
-    LOGGER.info(log_message)
-
-@bot.on_callback_query(filters.regex('set_red_envelope_allow_private') & admins_on_filter)
-async def set_red_envelope_allow_private(_, call):
-    config.red_envelope.allow_private = not config.red_envelope.allow_private
-    if config.red_envelope.allow_private:
-        message = '👮🏻‍♂️ 您已开启 专属红包，现在用户可以发送专属红包了'
-        log_message = f"【admin】：管理员 {call.from_user.first_name} 已调整 专属红包功能 True"
-    else:
-        message = '👮🏻‍♂️ 您已关闭 专属红包，现在用户不能发送专属红包了'
-        log_message = f"【admin】：管理员 {call.from_user.first_name} 已调整 专属红包功能 False"
-    await callAnswer(call, message, True)
-    await config_p_re(_, call)
-    save_config()
-    LOGGER.info(log_message)
-
 @bot.on_callback_query(filters.regex('set_activity_check_days') & admins_on_filter)
 async def set_activity_check_days(_, call):
     await callAnswer(call, '📌 设置活跃检测天数')

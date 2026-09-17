@@ -48,20 +48,9 @@ class Open(BaseModel):
     #         return v.lower() == 'y'
     #     return v
 
-    checkin: bool
-    checkin_lv: Optional[str] = 'd'
     exchange: bool
-    whitelist: bool
     use_whitelist_code: bool = False
-    invite: bool
-    invite_lv: Optional[str] = 'b'
     leave_ban: bool
-    uplays: bool = True
-    checkin_reward: Optional[List[int]] = [1, 10]
-    exchange_cost: int = 300
-    whitelist_cost: int = 9999
-    invite_cost: int = 1000
-    srank_cost: int = 5
 
     # 每次创建 Open 对象时被重置为 0
     def __init__(self, **data):
@@ -112,7 +101,6 @@ class MP(BaseModel):
     username: Optional[str] = ""
     password: Optional[str] = ""
     access_token: Optional[str] = ""
-    price: int = 1
     download_log_chatid: Optional[int] = None
     lv: Optional[str] = "b"
 
@@ -134,10 +122,6 @@ class API(BaseModel):
         if self.allow_origins is None:
             self.allow_origins = ["*"]
             # 如果未设置，默认为 ["*"]，为了安全可以设置成本机ip&反代的域名，列表可包含多个
-class RedEnvelope(BaseModel):
-    status: bool = True  # 是否开启红包
-    allow_private: bool = True # 是否允许专属红包
-
 class ServerCfg(BaseModel):
     """单台 Emby 服务器配置，servers[0] 为主服"""
     name: str  # 服务器标识，需在 servers 中唯一
@@ -159,7 +143,6 @@ class Config(BaseModel):
     bot_photo: str
     open: Open
     admins: Optional[List[int]] = []
-    money: str
     emby_api: str
     emby_url: str
     emby_block: Optional[List[str]] = []
@@ -217,7 +200,6 @@ class Config(BaseModel):
     partition_libs: Dict[str, List[str]] = Field(default_factory=dict)
     moviepilot: MP = Field(default_factory=MP)
     auto_update: AutoUpdate = Field(default_factory=AutoUpdate)
-    red_envelope: RedEnvelope = Field(default_factory=RedEnvelope)
     api: API = Field(default_factory=API)
     # 多台 Emby 服务器，第一台为主服；不配置时自动由 emby_url/emby_api/emby_line 合成单服
     servers: Optional[List[ServerCfg]] = None
@@ -244,7 +226,6 @@ class Config(BaseModel):
 
 class Yulv(BaseModel):
     wh_msg: List[str]
-    red_bag: List[str]
 
     @classmethod
     def load_yulv(cls):

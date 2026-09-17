@@ -38,7 +38,7 @@ async def login_account(_, msg):
             LOGGER.error("【创建非tg账户】未知错误，检查是否重复id %s 或 emby状态" % name)
         else:
             embyid, pwd, ex = result
-            sql_add_emby2(embyid=embyid, name=name, cr=datetime.now(), ex=ex, pwd=pwd, pwd2=pwd)
+            sql_add_emby2(embyid=embyid, name=name, cr=datetime.now(), ex=ex, pwd=pwd)
             await send.edit(
                 f'**🎉 成功创建有效期{days}天 #{name}\n\n'
                 f'• 用户名称 | `{name}`\n'

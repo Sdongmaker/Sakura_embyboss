@@ -13,19 +13,17 @@ from bot import LOGGER
 
 class Emby(Base):
     """
-    emby表，tg主键，默认值lv，us，iv
+    emby表，tg主键，默认值lv，us
     """
     __tablename__ = 'emby'
     tg = Column(BigInteger, primary_key=True, autoincrement=False)
     embyid = Column(String(255), nullable=True)
     name = Column(String(255), nullable=True)
     pwd = Column(String(255), nullable=True)
-    pwd2 = Column(String(255), nullable=True)
     lv = Column(String(1), default='d')
     cr = Column(DateTime, nullable=True)
     ex = Column(DateTime, nullable=True)
     us = Column(Integer, default=0)
-    iv = Column(Integer, default=0)
     ch = Column(DateTime, nullable=True)
 
 class EmbyServerAccount(Base):
@@ -131,19 +129,6 @@ def sql_delete_emby_by_tg(tg):
             session.rollback()
             return False
 
-def sql_clear_emby_iv():
-    """
-    清除所有emby的iv
-    """
-    with Session() as session:
-        try:
-            session.query(Emby).update({Emby.iv: 0})
-            session.commit()
-            return True
-        except Exception as e:
-            LOGGER.error(f"清除所有emby的iv时发生异常 {e}")
-            return False
-
 def sql_delete_emby(tg=None, embyid=None, name=None):
     """
     根据tg, embyid或name删除一条emby记录
@@ -200,15 +185,6 @@ def sql_delete_emby(tg=None, embyid=None, name=None):
 def sql_update_embys(some_list: list, method=None):
     """ 根据list中的tg值批量更新一些值 ，此方法不可更新主键"""
     with Session() as session:
-        if method == 'iv':
-            try:
-                mappings = [{"tg": c[0], "iv": c[1]} for c in some_list]
-                session.bulk_update_mappings(Emby, mappings)
-                session.commit()
-                return True
-            except:
-                session.rollback()
-                return False
         if method == 'ex':
             try:
                 mappings = [{"tg": c[0], "ex": c[1]} for c in some_list]

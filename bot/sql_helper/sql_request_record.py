@@ -11,7 +11,6 @@ class RequestRecord(Base):
     download_id = Column(String(255), primary_key=True, autoincrement=False)
     tg = Column(BigInteger, nullable=False)
     request_name = Column(String(255), nullable=False)
-    cost = Column(String(255), nullable=False)
     detail = Column(Text, nullable=False)
     left_time = Column(String(255))
     download_state= Column(String(50), default='pending')  # pending, downloading, completed, failed
@@ -21,11 +20,11 @@ class RequestRecord(Base):
     update_at = Column(DateTime, default=datetime.datetime.utcnow,
                       onupdate=datetime.datetime.utcnow)
 
-def sql_add_request_record(tg: int, download_id: str, request_name: str, detail: str, cost: str):
+def sql_add_request_record(tg: int, download_id: str, request_name: str, detail: str):
     with Session() as session:
         try:
             request_record = RequestRecord(
-                tg=tg, download_id=download_id, request_name=request_name, detail=detail, cost=cost, left_time='一万年吧')
+                tg=tg, download_id=download_id, request_name=request_name, detail=detail, left_time='一万年吧')
             session.add(request_record)
             session.commit()
             return True

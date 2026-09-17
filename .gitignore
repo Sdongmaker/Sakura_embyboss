@@ -13,3 +13,7 @@ __pycache__
 log
 *.sql
 bot-env
+# 运行时密钥（bot token/api_key/登录 session），务必不要提交
+config.json
+*.session
+*.session-journal

@@ -15,7 +15,7 @@ from bot.func_helper.filters import user_in_group_filter, user_in_group_on_filte
 from bot.func_helper.msg_utils import deleteMessage, sendMessage, sendPhoto, callAnswer, editMessage
 from bot.func_helper.fix_bottons import group_f, judge_start_ikb, judge_group_ikb, cr_kk_ikb
 from bot.modules.extra import user_cha_ip
-from bot import bot, prefixes, group, bot_photo, ranks, sakura_b
+from bot import bot, prefixes, group, bot_photo, ranks
 
 
 # 反命令提示
@@ -73,12 +73,12 @@ async def p_start(_, msg):
         if not data:
             return await sendMessage(msg, "❌ 出现错误，请稍后再试")
         is_admin = judge_admins(msg.from_user.id)
-        name, lv, ex, us, embyid, pwd2 = data
+        name, lv, ex, us, embyid = data
         stat, all_user, tem, timing = await open_check()
         text = f"▎__欢迎进入用户面板！{msg.from_user.first_name}__\n\n" \
                f"**· 🆔 用户のID** | `{msg.from_user.id}`\n" \
                f"**· 📊 当前状态** | {lv}\n" \
-               f"**· 🍒 积分{sakura_b}** | {us}\n" \
+               f"**· ⏳ 剩余天数** | {us}\n" \
                f"**· ®️ 注册状态** | {stat}\n" \
                f"**· 🎫 总注册限制** | {all_user}\n" \
                f"**· 🎟️ 可注册席位** | {all_user - tem}\n"
@@ -106,14 +106,3 @@ async def b_start(_, call):
                              editMessage(call, text='💢 拜托啦！请先点击下面加入我们的群组和频道，然后再 /start 一下好吗？\n\n'
                                                     '⁉️ ps：如果您已在群组中且收到此消息，请联系管理员解除您的权限限制，因为被限制用户无法使用本bot。',
                                          buttons=judge_group_ikb))
-
-
-@bot.on_callback_query(filters.regex('store_all'))
-async def store_alls(_, call):
-    if not await user_in_group_filter(_, call):
-        await asyncio.gather(callAnswer(call, "⭐ 返回start"),
-                             deleteMessage(call), sendPhoto(call, bot_photo,
-                                                            '💢 拜托啦！请先点击下面加入我们的群组和频道，然后再 /start 一下好吗？',
-                                                            judge_group_ikb))
-    elif await user_in_group_filter(_, call):
-        await callAnswer(call, '⭕ 正在编辑', True)

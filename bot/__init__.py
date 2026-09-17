@@ -28,7 +28,6 @@ chanel = config.chanel
 bot_photo = config.bot_photo
 _open = config.open
 admins = config.admins
-sakura_b = config.money
 ranks = config.ranks
 prefixes = ['/', '!', '.', '，', '。']
 schedall = config.schedall
@@ -62,7 +61,6 @@ w_anti_channel_ids = config.w_anti_channel_ids
 kk_gift_days = config.kk_gift_days
 fuxx_pitao = config.fuxx_pitao
 activity_check_days = config.activity_check_days
-red_envelope = config.red_envelope
 
 moviepilot = config.moviepilot
 auto_update = config.auto_update
@@ -76,15 +74,10 @@ from pyrogram.types import BotCommand
 user_p = [
     BotCommand("start", "[私聊] 开启用户面板"),
     BotCommand("myinfo", "[用户] 查看状态"),
-    BotCommand("count", "[用户] 媒体库数量"),
-    BotCommand("red", "[用户/禁言] 发红包"),
-    BotCommand("srank", "[用户/禁言] 查看计分")]
+    BotCommand("count", "[用户] 媒体库数量")]
 
-# 取消 BotCommand("exchange", "[私聊] 使用注册码")
 admin_p = user_p + [
     BotCommand("kk", "管理用户 [管理]"),
-    BotCommand("score", "加/减积分 [管理]"),
-    BotCommand("coins", f"加/减{sakura_b} [管理]"),
     BotCommand("deleted", "清理死号 [管理]"),
     BotCommand("kick_not_emby", "踢出当前群内无号崽 [管理]"),
     BotCommand("renew", "调整到期时间 [管理]"),
@@ -114,8 +107,6 @@ admin_p = user_p + [
     BotCommand("auditclient", "根据客户端名审计用户 [管理]"),
     BotCommand("watching", "查看Emby当前观看状态 [管理]"),
     BotCommand("renewall", "一键派送天数给所有未封禁的用户 [管理]"),
-    BotCommand("coinsall", "一键派送币币给指定等级的用户 [管理]"),
-    BotCommand("coinsclear", "一键清除所有用户的币币 [管理]"),
     BotCommand("callall", "群发消息给每个人 [管理]"),
     BotCommand("only_rm_emby", "删除指定的Emby账号 [管理]"),
     BotCommand("only_rm_record", "删除指定的tgid数据库记录 [管理]"),

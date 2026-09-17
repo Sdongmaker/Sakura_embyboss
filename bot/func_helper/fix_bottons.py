@@ -2,8 +2,8 @@ from cacheout import Cache
 from pykeyboard import InlineKeyboard, InlineButton
 from pyrogram.types import InlineKeyboardMarkup
 from pyromod.helpers import ikb, array_chunk
-from bot import chanel, main_group, bot_name, extra_emby_libs, tz_id, tz_ad, tz_api, tz_version, tz_username, tz_password, _open, sakura_b, \
-    schedall, auto_update, fuxx_pitao, moviepilot, red_envelope, config, LOGGER
+from bot import chanel, main_group, bot_name, extra_emby_libs, tz_id, tz_ad, tz_api, tz_version, tz_username, tz_password, _open, \
+    schedall, auto_update, fuxx_pitao, moviepilot, config, LOGGER
 from bot.func_helper import nezha_res
 from bot.func_helper.emby import emby
 from bot.func_helper.utils import members_info
@@ -23,9 +23,6 @@ def judge_start_ikb(is_admin: bool, account: bool) -> InlineKeyboardMarkup:
         d.append(['👑 创建账户', 'create'])
         d.append(['⭕ 换绑TG', 'changetg'])
         d.append(['🔍 绑定TG', 'bindtg'])
-        # 如果邀请等级为d （未注册用户也能使用），则显示兑换商店
-        if _open.invite_lv == 'd':
-            d.append(['🏪 兑换商店', 'storeall'])
     else:
         d = [['️👥 用户功能', 'members'], ['🌐 服务器', 'server']]
         if schedall.check_ex:
@@ -34,8 +31,6 @@ def judge_start_ikb(is_admin: bool, account: bool) -> InlineKeyboardMarkup:
             d.append(['🎟️ 使用分区码', 'partitioncode'])
         if _open.use_whitelist_code:
             d.append(['🔑 使用白名单码', 'wl_exchange'])
-    if _open.checkin:
-        d.append(['🎯 签到', 'checkin'])
     lines = array_chunk(d, 2)
     if is_admin: lines.append([['👮🏻‍♂️ admin', 'manage']])
     keyword = ikb(lines)
@@ -57,7 +52,7 @@ def members_ikb(is_admin: bool = False, account: bool = False) -> InlineKeyboard
     判断用户面板
     """
     if account:
-        normal = [[('🏪 兑换商店', 'storeall'), ('🗑️ 删除账号', 'delme')],
+        normal = [[('🎟️ 兑换码', 'exchange'), ('🗑️ 删除账号', 'delme')],
                     [('🎬 显示/隐藏', 'embyblock'), ('⭕ 重置密码', 'reset')],
                     [('💖 我的收藏', 'my_favorites'),('💠 我的设备', 'my_devices')],
                     ]
@@ -81,7 +76,6 @@ re_bindtg_ikb = ikb([[('✨ 绑定TG', 'bindtg'), ('💫 用户主页', 'members
 re_delme_ikb = ikb([[('♻️ 重试', 'delme')], [('🔙 返回', 'members')]])
 re_reset_ikb = ikb([[('♻️ 重试', 'reset')], [('🔙 返回', 'members')]])
 re_exchange_b_ikb = ikb([[('♻️ 重试', 'exchange'), ('❌ 关闭', 'closeit')]])
-re_born_ikb = ikb([[('✨ 重输', 'store-reborn'), ('💫 返回', 'storeall')]])
 
 
 def send_changetg_ikb(cr_id, rp_id):
@@ -91,15 +85,6 @@ def send_changetg_ikb(cr_id, rp_id):
     :return:
     """
     return ikb([[('✅ 通过', f'changetg_{cr_id}_{rp_id}'), ('❎ 驳回', f'nochangetg_{cr_id}_{rp_id}')]])
-
-
-def store_ikb():
-    return ikb([[(f'♾️ 兑换白名单', 'store-whitelist'), (f'🔥 兑换解封禁', 'store-reborn')],
-                [(f'🎟️ 兑换注册码', 'store-invite'), (f'🔍 查询注册码', 'store-query')],
-                [(f'❌ 取消', 'members')]])
-
-
-re_store_renew = ikb([[('✨ 重新输入', 'changetg'), ('💫 取消输入', 'storeall')]])
 
 
 def del_me_ikb(embyid) -> InlineKeyboardMarkup:
@@ -176,29 +161,8 @@ async def cr_paginate(total_page: int, current_page: int, n) -> InlineKeyboardMa
     """
     keyboard = InlineKeyboard()
     keyboard.paginate(total_page, current_page, 'pagination_keyboard:{number}' + f'_{n}')
-    next = InlineButton('⏭️ 后退+5', f'users_iv:{current_page + 5}-{n}')
-    previous = InlineButton('⏮️ 前进-5', f'users_iv:{current_page - 5}-{n}')
-    followUp = [InlineButton('❌ 关闭', f'closeit')]
-    if total_page > 5:
-        if current_page - 5 >= 1:
-            followUp.append(previous)
-        if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
-    return keyboard
-
-
-async def users_iv_button(total_page: int, current_page: int, tg) -> InlineKeyboardMarkup:
-    """
-    :param total_page: 总页数
-    :param current_page: 当前页数
-    :param tg: 可操作的tg_id
-    :return:
-    """
-    keyboard = InlineKeyboard()
-    keyboard.paginate(total_page, current_page, 'users_iv:{number}' + f'_{tg}')
-    next = InlineButton('⏭️ 后退+5', f'users_iv:{current_page + 5}_{tg}')
-    previous = InlineButton('⏮️ 前进-5', f'users_iv:{current_page - 5}_{tg}')
+    next = InlineButton('⏭️ 后退+5', f'pagination_keyboard:{current_page + 5}_{n}')
+    previous = InlineButton('⏮️ 前进-5', f'pagination_keyboard:{current_page - 5}_{n}')
     followUp = [InlineButton('❌ 关闭', f'closeit')]
     if total_page > 5:
         if current_page - 5 >= 1:
@@ -230,26 +194,6 @@ async def plays_list_button(total_page: int, current_page: int, days) -> InlineK
     keyboard.row(*followUp)
     return keyboard
 
-
-async def store_query_page(total_page: int, current_page: int) -> InlineKeyboardMarkup:
-    """
-    member的注册码查询分页
-    :param total_page: 总
-    :param current_page: 当前
-    :return:
-    """
-    keyboard = InlineKeyboard()
-    keyboard.paginate(total_page, current_page, 'store-query:{number}')
-    next = InlineButton('⏭️ 后退+5', f'store-query:{current_page + 5}')
-    previous = InlineButton('⏮️ 前进-5', f'store-query:{current_page - 5}')
-    followUp = [InlineButton('🔙 Back', 'storeall')]
-    if total_page > 5:
-        if current_page - 5 >= 1:
-            followUp.append(previous)
-        if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
-    return keyboard
 
 async def whitelist_page_ikb(total_page: int, current_page: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboard()
@@ -306,46 +250,15 @@ async def favorites_page_ikb(total_page: int, current_page: int) -> InlineKeyboa
     keyboard.row(*followUp)
     return keyboard
 def cr_renew_ikb():
-    checkin = '✔️' if _open.checkin else '❌'
     exchange = '✔️' if _open.exchange else '❌'
-    whitelist = '✔️' if _open.whitelist else '❌'
     use_whitelist_code = '✔️' if _open.use_whitelist_code else '❌'
-    invite = '✔️' if _open.invite else '❌'
-    # 添加邀请等级的显示
-    lv_dic = {
-        'a': '白名单',
-        'b': '普通用户',
-        'c': '已禁用用户',
-        'd': '所有人'
-    }
-    invite_lv_text = lv_dic.get(_open.invite_lv, '未知')
-    checkin_lv_text = lv_dic.get(_open.checkin_lv, '未知')
     keyboard = InlineKeyboard(row_width=2)
-    keyboard.add(InlineButton(f'{checkin} 每日签到', f'set_renew-checkin'),
-                 InlineButton(f'签到等级: {checkin_lv_text}', f'set_checkin_lv'),
-                 InlineButton(f'{exchange} 自动{sakura_b}续期', f'set_renew-exchange'),
-                 InlineButton(f'{whitelist} 兑换白名单', f'set_renew-whitelist'),
-                 InlineButton(f'{use_whitelist_code} 白名单码', f'set_renew-use_whitelist_code'),
-                 InlineButton(f'{invite} 兑换邀请码', f'set_renew-invite'),
-                 InlineButton(f'邀请等级: {invite_lv_text}', f'set_invite_lv')
+    keyboard.add(InlineButton(f'{exchange} 兑换注册/续期码', f'set_renew-exchange'),
+                 InlineButton(f'{use_whitelist_code} 白名单码', f'set_renew-use_whitelist_code')
                  )
     keyboard.row(InlineButton(f'◀ 返回', 'manage'))
     return keyboard
-def invite_lv_ikb():
-    keyboard = ikb([
-        [('🅰️ 白名单', 'set_invite_lv-a'), ('🅱️ 普通用户', 'set_invite_lv-b')],
-        [('©️ 已禁用用户', 'set_invite_lv-c'), ('🅳️  所有用户', 'set_invite_lv-d')],
-        [('🔙 返回', 'set_renew')]
-    ])
-    return keyboard
 
-def checkin_lv_ikb():
-    keyboard = ikb([
-        [('🅰️ 白名单', 'set_checkin_lv-a'), ('🅱️ 普通用户', 'set_checkin_lv-b')],
-        [('©️ 已禁用用户', 'set_checkin_lv-c'), ('🅳️  所有用户', 'set_checkin_lv-d')],
-        [('🔙 返回', 'set_renew')]
-    ])
-    return keyboard
 """ config_panel ↓"""
 
 
@@ -353,23 +266,17 @@ def config_preparation() -> InlineKeyboardMarkup:
     mp_set = '✅' if moviepilot.status else '❎'
     auto_up = '✅' if auto_update.status else '❎'
     leave_ban = '✅' if _open.leave_ban else '❎'
-    uplays = '✅' if _open.uplays else '❎'
     fuxx_pt = '✅' if fuxx_pitao else '❎'
-    red_envelope_status = '✅' if red_envelope.status else '❎'
-    allow_private = '✅' if red_envelope.allow_private else '❎'
-    checkin_lv_text = {'a': '白名单', 'b': '普通用户', 'd': '所有人'}.get(_open.checkin_lv, '所有人')
     keyboard = ikb(
         [[('📄 导出日志', 'log_out'), ('📌 设置探针', 'set_tz')],
          [('🎬 显/隐指定库', 'set_block'), (f'{fuxx_pt} 皮套人过滤功能', 'set_fuxx_pitao')],
          [('💠 普通用户线路', 'set_line'),('🌟 白名单线路', 'set_whitelist_line')],
          [('📡 客户端过滤', 'set_client_filter')],
-         [(f'{leave_ban} 退群封禁', 'leave_ban'), (f'{uplays} 观影奖励结算', 'set_uplays')],
+         [(f'{leave_ban} 退群封禁', 'leave_ban')],
          [(f'{auto_up} 自动更新bot', 'set_update'), (f'{mp_set} Moviepilot点播', 'set_mp')],
-         [(f'{red_envelope_status} 红包', 'set_red_envelope_status'), (f'{allow_private} 专属红包', 'set_red_envelope_allow_private')],
             [('🎟️ 分区通行码', 'partition_code_panel')],
          [(f'设置赠送资格天数({config.kk_gift_days}天)', 'set_kk_gift_days'), (f'设置活跃检测天数({config.activity_check_days}天)', 'set_activity_check_days')],
          [(f'设置封存账号天数({config.freeze_days}天)', 'set_freeze_days')],
-         [(f'设置签到权限({checkin_lv_text})', 'set_checkin_lv')],
          [('🔙 返回', 'manage')]])
     return keyboard
 
@@ -398,7 +305,6 @@ def try_set_buy(ls: list) -> InlineKeyboardMarkup:
 
 """ other """
 register_code_ikb = ikb([[('🎟️ 注册', 'create'), ('⭕ 取消', 'closeit')]])
-dp_g_ikb = ikb([[("🈺 ╰(￣ω￣ｏ)", "t.me/Aaaaa_su", "url")]])
 
 
 async def cr_kk_ikb(uid, first):
@@ -409,7 +315,7 @@ async def cr_kk_ikb(uid, first):
     if data is None:
         text += f'**· 🆔 TG** ：[{first}](tg://user?id={uid}) [`{uid}`]\n数据库中没有此ID。ta 还没有私聊过我'
     else:
-        name, lv, ex, iv, embyid, pwd2 = data
+        name, lv, ex, us, embyid = data
         if name != '无账户信息':
             ban = "🌟 解除禁用" if lv == "**已禁用**" else '💢 禁用账户'
             keyboard = [[ban, f'user_ban-{uid}'], ['⚠️ 删除账户', f'closeemby-{uid}']]
@@ -458,7 +364,7 @@ async def cr_kk_ikb(uid, first):
         text += f"**· 🍉 TG&名称** | [{first}](tg://user?id={uid})\n" \
                 f"**· 🍒 识别のID** | `{uid}`\n" \
                 f"**· 🍓 当前状态** | {lv}\n" \
-                f"**· 🍥 持有{sakura_b}** | {iv}\n" \
+                f"**· ⏳ 剩余天数** | {us}\n" \
                 f"**· 💠 账号名称** | {name}\n" \
                 f"**· 🚨 到期时间** | **{ex}**\n"
         text += text1
@@ -520,20 +426,6 @@ def sched_buttons():
     return keyboard
 
 
-""" checkin 按钮↓"""
-
-# def shici_button(ls: list):
-#     shici = []
-#     for l in ls:
-#         l = [l, f'checkin-{l}']
-#         shici.append(l)
-#     # print(shici)
-#     lines = array_chunk(shici, 4)
-#     return ikb(lines)
-
-
-# checkin_button = ikb([[('🔋 重新签到', 'checkin'), ('🎮 返回主页', 'back_start')]])
-
 """ Request_media """
 
 # request_tips_ikb = ikb([[('✔️ 已转向私聊求片', 'go_to_qiupian')]])
@@ -593,7 +485,7 @@ def mp_config_ikb():
         lv_text = '普通用户'
     keyboard = ikb([
         [(f'{mp_status} 点播功能', 'set_mp_status')],
-        [('💰 设置点播价格', 'set_mp_price'), ('👥 设置用户权限', 'set_mp_lv')],
+        [('👥 设置用户权限', 'set_mp_lv')],
         [('📝 设置日志频道', 'set_mp_log_channel')],
         [('🔙 返回', 'back_config')]
     ])
