@@ -3,7 +3,6 @@
 使得其能够成为管理员
 或者白名单，免除到期机制.
 """
-import random
 import asyncio
 from pyrogram import filters
 from pyrogram.errors import BadRequest
@@ -11,7 +10,6 @@ from pyrogram.errors import BadRequest
 from bot import bot, prefixes, owner, admins, save_config, LOGGER
 from bot.func_helper.filters import admins_on_filter
 from bot.func_helper.msg_utils import sendMessage, deleteMessage
-from bot.schemas import Yulv
 from bot.scheduler.bot_commands import BotCommands
 from bot.sql_helper.sql_emby import sql_update_emby, Emby, sql_get_emby
 from bot.sql_helper.sql_emby2 import sql_get_emby2, sql_update_emby2, Emby2
@@ -27,7 +25,7 @@ async def pro_admin(_, msg):
         except (IndexError, KeyError, BadRequest):
             await deleteMessage(msg)
             return await sendMessage(msg,
-                                     '**请先给我一个正确的id！**\n输入格式为：/proadmin [tgid]或**命令回复想要授权的人**',
+                                     '**请提供正确的 id。**\n输入格式为：/proadmin [tgid]或**命令回复想要授权的人**',
                                      timer=60)
     else:
         uid = msg.reply_to_message.from_user.id
@@ -38,8 +36,8 @@ async def pro_admin(_, msg):
 
     await asyncio.gather(deleteMessage(msg), BotCommands.pro_commands(_, uid),
                          sendMessage(msg,
-                                     f'**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n'
-                                     f'👮🏻 新更新管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{admins}',
+                                     '**白名单已开通**\n\n'
+                                     f'新更新管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{admins}',
                                      timer=60))
 
     LOGGER.info(f"【admin】：{msg.from_user.id} 新更新 管理 {first.first_name}-{uid}")
@@ -64,7 +62,7 @@ async def pro_user(_, msg):
         except (IndexError, KeyError, BadRequest):
             await deleteMessage(msg)
             return await sendMessage(msg,
-                                     '**请先给我一个正确的id或用户名！**\n输入格式为：/prouser [tgid/username]或**命令回复想要授权的人**',
+                                     '**请提供正确的 id 或用户名。**\n输入格式为：/prouser [tgid/username]或**命令回复想要授权的人**',
                                      timer=60)
     else:
         uid = msg.reply_to_message.from_user.id
@@ -80,23 +78,23 @@ async def pro_user(_, msg):
         if e is None and e2 is None:
             return await sendMessage(msg, f'用户名 `{username}` 在数据库中不存在！')
         
-        result_msg = f"**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n"
+        result_msg = "**白名单已开通**\n\n"
         sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
         
         # 更新emby表
         if e is not None and e.embyid is not None:
             if sql_update_emby(Emby.name == username, lv='a'):
                 user_display = f'[{e.name}](tg://user?id={e.tg})' if e.tg else e.name
-                result_msg += f"🎉 恭喜：{user_display} 获得 {sign_name} 签出的白名单.\n"
+                result_msg += f"{user_display} 获得 {sign_name} 签出的白名单。\n"
             else:
-                result_msg += "⚠️ 错误：数据库执行错误\n"
+                result_msg += "错误：数据库执行错误\n"
         
         # 更新emby2表
         if e2 is not None:
             if sql_update_emby2(Emby2.name == username, lv='a'):
-                result_msg += f"🎉 恭喜 {e2.name} 获得 {sign_name} 签出的白名单.\n"
+                result_msg += f"{e2.name} 获得 {sign_name} 签出的白名单。\n"
             else:
-                result_msg += "⚠️ 错误：数据库执行错误\n"
+                result_msg += "错误：数据库执行错误\n"
         
         await asyncio.gather(deleteMessage(msg), sendMessage(msg, result_msg))
         LOGGER.info(f"【admin】：{msg.from_user.id} 新增 白名单（用户名） {username}")
@@ -108,10 +106,10 @@ async def pro_user(_, msg):
         if sql_update_emby(Emby.tg == uid, lv='a'):
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             await asyncio.gather(deleteMessage(msg), sendMessage(msg,
-                                                                 f"**{random.choice(Yulv.load_yulv().wh_msg)}**\n\n"
-                                                                 f"🎉 恭喜 [{first.first_name}](tg://user?id={uid}) 获得 {sign_name} 签出的白名单."))
+                                                                 "**白名单已开通**\n\n"
+                                                                 f"[{first.first_name}](tg://user?id={uid}) 获得 {sign_name} 签出的白名单."))
         else:
-            return await sendMessage(msg, '⚠️ 数据库执行错误')
+            return await sendMessage(msg, '数据库执行错误')
         LOGGER.info(f"【admin】：{msg.from_user.id} 新增 白名单 {first.first_name}-{uid}")
 
 
@@ -125,7 +123,7 @@ async def del_admin(_, msg):
         except (IndexError, KeyError, BadRequest):
             await deleteMessage(msg)
             return await sendMessage(msg,
-                                     '**请先给我一个正确的id！**\n输入格式为：/revadmin [tgid]或**命令回复想要取消授权的人**',
+                                     '**请提供正确的 id。**\n输入格式为：/revadmin [tgid]或**命令回复想要取消授权的人**',
                                      timer=60)
 
     else:
@@ -136,7 +134,7 @@ async def del_admin(_, msg):
         save_config()
     await asyncio.gather(deleteMessage(msg), BotCommands.rev_commands(_, uid),
                          sendMessage(msg,
-                                     f'👮🏻 已减少管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{admins}'))
+                                     f'已减少管理员 #[{first.first_name}](tg://user?id={uid}) | `{uid}`\n**当前admins**\n{admins}'))
     LOGGER.info(f"【admin】：{msg.from_user.id} 新减少 管理 {first.first_name}-{uid}")
 
 
@@ -159,7 +157,7 @@ async def rev_user(_, msg):
         except (IndexError, KeyError, BadRequest):
             await deleteMessage(msg)
             return await msg.reply(
-                '**请先给我一个正确的id或用户名！**\n输入格式为：/revuser [tgid/username]或**命令回复想要取消授权的人**')
+                '**请提供正确的 id 或用户名。**\n输入格式为：/revuser [tgid/username]或**命令回复想要取消授权的人**')
 
     else:
         uid = msg.reply_to_message.from_user.id
@@ -182,16 +180,16 @@ async def rev_user(_, msg):
         if e is not None:
             if sql_update_emby(Emby.name == username, lv='b'):
                 user_display = f'[{e.name}](tg://user?id={e.tg})' if e.tg else e.name
-                result_msg += f"🤖 很遗憾 {user_display} 被 {sign_name} 移出白名单.\n"
+                result_msg += f"{user_display} 被 {sign_name} 移出白名单。\n"
             else:
-                result_msg += "⚠️ 错误：数据库执行错误\n"
+                result_msg += "错误：数据库执行错误\n"
         
         # 更新emby2表
         if e2 is not None:
             if sql_update_emby2(Emby2.name == username, lv='b'):
-                result_msg += f"🤖  很遗憾 {e2.name} 被 {sign_name} 移出白名单.\n"
+                result_msg += f"{e2.name} 被 {sign_name} 移出白名单。\n"
             else:
-                result_msg += "⚠️ 错误：数据库执行错误\n"
+                result_msg += "错误：数据库执行错误\n"
         
         await asyncio.gather(sendMessage(msg, result_msg), deleteMessage(msg))
         LOGGER.info(f"【admin】：{msg.from_user.id} 移除 白名单（用户名） {username}")
@@ -200,8 +198,8 @@ async def rev_user(_, msg):
         if sql_update_emby(Emby.tg == uid, lv='b'):
             sign_name = f'{msg.sender_chat.title}' if msg.sender_chat else f'[{msg.from_user.first_name}](tg://user?id={msg.from_user.id})'
             await asyncio.gather(sendMessage(msg,
-                                             f"🤖 很遗憾 [{first.first_name}](tg://user?id={uid}) 被 {sign_name} 移出白名单."),
+                                             f"[{first.first_name}](tg://user?id={uid}) 被 {sign_name} 移出白名单。"),
                                  deleteMessage(msg))
         else:
-            return await sendMessage(msg, '⚠️ 数据库执行错误')
+            return await sendMessage(msg, '数据库执行错误')
         LOGGER.info(f"【admin】：{msg.from_user.id} 新移除 白名单 {first.first_name}-{uid}")

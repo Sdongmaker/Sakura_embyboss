@@ -1,84 +1,28 @@
 """
 用户区面板代码
 先检测有无账户
-无 -> 创建账户、换绑tg
+无 -> 引导去商城购买、换绑tg
 
-有 -> 账户续期，重置密码，删除账户，显隐媒体库
+有 -> 账户续期、重置密码、删除账户、我的设备
 """
 import asyncio
 import datetime
 import math
 from datetime import timedelta, datetime
-from bot import bot, LOGGER, _open, ranks, group, config, bot_name
+from bot import bot, LOGGER, _open, ranks, group, bot_name
 from pyrogram import filters
-from bot.func_helper.concurrency import get_user_lock
 from bot.func_helper.emby import emby, emby_del_all, emby_policy_all, emby_reset_all, render_server_lines
-from bot.func_helper.register_queue import get_register_queue_manager, RegisterJob
 from bot.func_helper.filters import user_in_group_on_filter
-from bot.func_helper.utils import members_info, judge_admins, tem_deluser
-from bot.func_helper.fix_bottons import members_ikb, back_members_ikb, del_me_ikb, re_delme_ikb, \
-    re_reset_ikb, re_changetg_ikb, emby_block_ikb, user_emby_block_ikb, user_emby_unblock_ikb, re_exchange_b_ikb, \
-    re_bindtg_ikb, close_it_ikb, send_changetg_ikb, favorites_page_ikb
+from bot.func_helper.utils import members_info, judge_admins
+from bot.func_helper.fix_bottons import members_ikb, back_members_ikb, del_me_ikb, re_delme_ikb, re_reset_ikb, re_changetg_ikb, re_bindtg_ikb, close_it_ikb, send_changetg_ikb, favorites_page_ikb
 from bot.func_helper.msg_utils import callAnswer, editMessage, callListen, sendMessage, ask_return, deleteMessage
 from bot.modules.commands import p_start
-from bot.modules.commands.partition_code import _redeem_partition_code
 from bot.modules.commands.exchange import rgs_code
 from bot.sql_helper.sql_emby import sql_get_emby, sql_update_emby, Emby
 from bot.sql_helper.sql_emby2 import sql_get_emby2, sql_delete_emby2
 
 # 创号函数
-async def create_user(_, call, stats):
-    msg = await ask_return(call,
-                           text='🤖**注意：您已进入注册状态:\n\n• 请在2min内输入 `[用户名]`\n• 举个例子🌰：`苏苏`**\n\n• 用户名中不限制中/英文/emoji，🚫**特殊字符**'
-                                '\n• 账户密码由系统生成并只发送一次，请及时保存；退出请点 /cancel', timer=120,
-                           button=close_it_ikb)
-    if not msg:
-        return
 
-    elif msg.text == '/cancel':
-        return await asyncio.gather(msg.delete(), bot.delete_messages(msg.from_user.id, msg.id - 1))
-
-    try:
-        emby_name, = msg.text.split()
-    except (IndexError, ValueError):
-        await msg.reply(f'⚠️ 输入格式错误\n\n`{msg.text}`\n **会话已结束！**')
-    else:
-        async with get_user_lock(call.from_user.id):
-            current = sql_get_emby(tg=call.from_user.id)
-            if not current:
-                return await msg.reply('⚠️ 数据库没有你，请重新 /start录入')
-            if current.embyid:
-                return await msg.reply('💦 你已经有账户啦！请勿重复注册。')
-            if not stats and int(current.us or 0) <= 0:
-                return await msg.reply('🤖 当前没有可用注册资格，请重新领取注册码后再试。')
-
-            days = _open.open_us if stats else int(current.us)
-            queue = get_register_queue_manager()
-            send = await msg.reply(
-                f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}** \n\n__正在加入注册队列__......')
-            ok, reason, position = await queue.enqueue(
-                RegisterJob(
-                    user_id=call.from_user.id,
-                    username=emby_name,
-                    stats=stats,
-                    days=days,
-                    status_message=send,
-                )
-            )
-            if ok:
-                return await editMessage(
-                    send,
-                    f'🆗 会话结束，收到设置\n\n用户名：**{emby_name}** \n\n'
-                    f'__已进入注册队列，当前排队序号：{position}__\n'
-                    f'请耐心等待，创建完成后我会在这里直接通知你。',
-                )
-
-            failure_text = {
-                "duplicate": "⚠️ 你已经有一个注册任务正在排队或处理中，请勿重复提交。",
-                "queue_full": "⚠️ 当前注册排队人数过多，请稍后再试。",
-                "slot_full": f'**🚫 很抱歉，剩余可注册总数({_open.tem})，已达总注册限制({_open.all_user})。**',
-            }.get(reason, "❌ 注册任务提交失败，请稍后重试。")
-            return await editMessage(send, failure_text)
 
 
 # 键盘中转
@@ -88,11 +32,10 @@ async def members(_, call):
     if not data:
         return await callAnswer(call, '⚠️ 数据库没有你，请重新 /start录入', True)
     await callAnswer(call, f"✅ 用户界面")
-    name, lv, ex, us, embyid = data
+    name, lv, ex, embyid = data
     text = f"▎__欢迎进入用户面板！{call.from_user.first_name}__\n\n" \
            f"**· 🆔 用户のID** | `{call.from_user.id}`\n" \
            f"**· 📊 当前状态** | {lv}\n" \
-           f"**· ⏳ 剩余天数** | {us}\n" \
            f"**· 💠 账号名称** | [{name}](tg://user?id={call.from_user.id})\n" \
            f"**· 🚨 到期时间** | {ex}"
     if not embyid:
@@ -101,46 +44,6 @@ async def members(_, call):
     else:
         await editMessage(call, text, members_ikb(account=True))
 
-
-# 创建账户
-@bot.on_callback_query(filters.regex('create') & user_in_group_on_filter)
-async def create(_, call):
-    """
-
-    当队列已满时，用户会收到等待提示。
-    信号量和计数器正确释放。
-    代码保存至收藏夹，改版时勿忘加入排队机制
-    :param _:
-    :param call:
-    :return:
-    """
-    stats = None
-    queue = get_register_queue_manager()
-    if await queue.is_user_busy(call.from_user.id):
-        return await callAnswer(call, '⚠️ 你已有注册任务正在排队或处理中，请稍后。', True)
-
-    async with get_user_lock(call.from_user.id):
-        e = sql_get_emby(tg=call.from_user.id)
-        if not e:
-            return await callAnswer(call, '⚠️ 数据库没有你，请重新 /start录入', True)
-
-        if e.embyid:
-            return await callAnswer(call, '💦 你已经有账户啦！请勿重复注册。', True)
-        if _open.stat:
-            stats = True
-        elif int(e.us or 0) > 0:
-            stats = False
-        else:
-            return await callAnswer(call, f'🤖 自助注册已关闭，等待开启或使用注册码注册。', True)
-
-    if stats:
-        send = await callAnswer(call, f"🪙 开放注册中，免除资质核验。", True)
-    else:
-        send = await callAnswer(call, f'🪙 资质核验成功，请稍后。', True)
-
-    if send is False:
-        return
-    await create_user(_, call, stats=stats)
 
 
 # 换绑tg
@@ -164,7 +67,7 @@ async def change_tg(_, call):
 
         # 清空原账号信息但保留tg
         if sql_update_emby(Emby.tg == replace_id, embyid=None, name=None, pwd=None,
-                          lv='d', cr=None, ex=None, us=0, ch=None):
+                          lv='d', cr=None, ex=None, ch=None):
             LOGGER.info(f'【TG改绑】清空原账户 id{e.tg} 成功')
         else:
             await bot.send_message(current_id, "🍰 **⭕#TG改绑 原账户清空错误，请联系闺蜜（管理）！**")
@@ -394,7 +297,6 @@ async def del_emby(_, call):
     embyid = call.data.split('-')[1]
     if await emby_del_all(tg=call.from_user.id, embyid=embyid):
         sql_update_emby(Emby.embyid == embyid, embyid=None, name=None, pwd=None, lv='d', cr=None, ex=None)
-        tem_deluser()
         send1 = await editMessage(call, '🗑️ 好了，已经为您删除...\n愿来日各自安好，山高水长，我们有缘再见！',
                                   buttons=back_members_ikb)
         if send1 is False:
@@ -463,102 +365,12 @@ async def reset(_, call):
                         LOGGER.error(f"【重置密码】：{call.from_user.id} 重置密码失败 ！")
 
 
-# 显示/隐藏某些库
-@bot.on_callback_query(filters.regex('embyblock'))
-async def embyblocks(_, call):
-    data = sql_get_emby(tg=call.from_user.id)
-    if not data:
-        return await callAnswer(call, '⚠️ 数据库没有你，请重新 /start录入', True)
-    if data.embyid is None:
-        return await callAnswer(call, '❓ 未查询到账户，不许乱点!', True)
-    elif data.lv == "c":
-        return await callAnswer(call, '💢 账户到期，封禁中无法使用！', True)
-    elif len(config.emby_block) == 0:
-        send = await editMessage(call, '⭕ 管理员未设置。。。 快催催\no(*////▽////*)q', buttons=back_members_ikb)
-        if send is False:
-            return
-    else:
-        success, rep = await emby.user(emby_id=data.embyid)
-        try:
-            if success is False:
-                stat = '💨 未知'
-            else:
-                # 新版本使用 EnabledFolders 和 EnableAllFolders 控制访问
-                policy = rep.get("Policy", {})
-                enable_all_folders = policy.get("EnableAllFolders")
-                enabled_folders = policy.get("EnabledFolders", [])
-
-                if enable_all_folders:
-                    # 如果启用所有文件夹，检查是否有特定的阻止设置
-                    stat = '🟢 显示'
-                else:
-                    # 检查目标媒体库是否在启用列表中
-                    # 需要获取媒体库ID来进行比较
-                    target_folder_ids = await emby.get_folder_ids_by_names(config.emby_block)
-                    if target_folder_ids and any(folder_id in enabled_folders for folder_id in target_folder_ids):
-                        stat = '🟢 显示'
-                    else:
-                        stat = '🔴 隐藏'
-        except KeyError:
-            stat = '💨 未知'
-        block = ", ".join(config.emby_block)
-        await asyncio.gather(callAnswer(call, "✅ 到位"),
-                             editMessage(call,
-                                         f'🤺 用户状态：{stat}\n🎬 目前设定的库为: \n\n**{block}**\n\n请选择你的操作。',
-                                         buttons=emby_block_ikb(data.embyid)))
-
-
-# 隐藏
-@bot.on_callback_query(filters.regex('emby_block'))
-async def user_emby_block(_, call):
-    embyid = call.data.split('-')[1]
-    send = await callAnswer(call, f'🎬 正在为您关闭显示ing')
-    if send is False:
-        return
-    success, rep = await emby.user(emby_id=embyid)
-    if success:
-        try:
-            # 使用封装的隐藏媒体库方法
-            re = await emby.hide_folders_by_names(embyid, config.emby_block)
-            if re is True:
-                send1 = await editMessage(call, f'🕶️ ο(=•ω＜=)ρ⌒☆\n 小尾巴隐藏好了！ ', buttons=user_emby_block_ikb)
-                if send1 is False:
-                    return
-            else:
-                await editMessage(call, f'🕶️ Error!\n 隐藏失败，请上报管理检查)', buttons=back_members_ikb)
-        except Exception as e:
-            LOGGER.error(f"隐藏媒体库失败: {str(e)}")
-            await editMessage(call, f'🕶️ Error!\n 隐藏失败，请上报管理检查)', buttons=back_members_ikb)
-
-
-# 显示
-@bot.on_callback_query(filters.regex('emby_unblock'))
-async def user_emby_unblock(_, call):
-    embyid = call.data.split('-')[1]
-    send = await callAnswer(call, f'🎬 正在为您开启显示ing')
-    if send is False:
-        return
-    success, rep = await emby.user(emby_id=embyid)
-    if success:
-        try:
-            # 使用封装的显示媒体库方法
-            re = await emby.show_folders_by_names(embyid, config.emby_block)
-            if re is True:
-                send1 = await editMessage(call, f'🕶️ ο(=•ω＜=)ρ⌒☆\n 小尾巴显示好了！ ', buttons=user_emby_unblock_ikb)
-                if send1 is False:
-                    return
-            else:
-                await editMessage(call, f'🕶️ Error!\n 显示失败，请上报管理检查设置', buttons=back_members_ikb)
-        except Exception as e:
-            LOGGER.error(f"显示媒体库失败: {str(e)}")
-            await editMessage(call, f'🕶️ Error!\n 显示失败，请上报管理检查设置', buttons=back_members_ikb)
-
 
 @bot.on_callback_query(filters.regex('^exchange$') & user_in_group_on_filter)
 async def call_exchange(_, call):
-    await asyncio.gather(callAnswer(call, '🔋 使用注册/续期码'), deleteMessage(call))
-    msg = await ask_return(call, text='🔋 **【使用注册/续期码】**：\n\n'
-                                      f'- 请在120s内对我发送你的注册/续期码，形如\n`{ranks.logo}-xx-xxxx`\n退出点 /cancel',
+    await asyncio.gather(callAnswer(call, '🔋 使用续期码'), deleteMessage(call))
+    msg = await ask_return(call, text='🔋 **【使用续期码】**：\n\n'
+                                      f'- 请在120s内对我发送你的续期码，形如\n`{ranks.logo}-Renew_xxxx`\n退出点 /cancel',
                            button=re_exchange_b_ikb)
     if not msg:
         return
@@ -567,20 +379,6 @@ async def call_exchange(_, call):
     else:
         await rgs_code(_, msg, register_code=msg.text)
 
-
-@bot.on_callback_query(filters.regex('^partitioncode$') & user_in_group_on_filter)
-async def call_partition_code(_, call):
-    await asyncio.gather(callAnswer(call, '🎟️ 使用分区码'), deleteMessage(call))
-    msg = await ask_return(call, text='🎟️ **【使用分区码】**：\n\n- 请在120s内发送分区码\n- 退出点 /cancel',
-                           button=re_exchange_b_ikb)
-    if not msg:
-        return
-    if msg.text == '/cancel':
-        await asyncio.gather(msg.delete(), p_start(_, msg))
-        return
-
-    ok, text = await _redeem_partition_code(msg.text.strip(), call.from_user.id)
-    await asyncio.gather(msg.delete(), sendMessage(call, text, timer=120 if ok else 60))
 
 
 @bot.on_callback_query(filters.regex('^wl_exchange$') & user_in_group_on_filter)

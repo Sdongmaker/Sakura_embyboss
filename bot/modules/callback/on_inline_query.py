@@ -1,7 +1,6 @@
 """
-on_inline_query - 
-突发奇想地想要一个内联键盘来搜索emby里面的资源
-先要打开内联模式
+on_inline_query -
+通过内联键盘搜索 emby 中的资源，需要先在 BotFather 开启内联模式
 """
 import asyncio
 
@@ -22,13 +21,13 @@ async def find_sth_media(_, inline_query: InlineQuery):
     try:
         if not inline_query.query or len(inline_query.query) < 2:
             results = [InlineQueryResultArticle(
-                title=f"请输入输入请至少两位字符！",
+                title=f"请输入至少两位字符",
                 description=f"本功能只提供于{ranks.logo}用户搜索收藏Emby资源库中的电影，电视剧，采用原生emby搜索，不一定准确，一切以Emby内容为准",
                 input_message_content=InputTextMessageContent(
                     f"本功能只提供于{ranks.logo}用户搜索/收藏Emby资源库中的电影，电视剧，采用原生emby搜索，不一定准确，一切以Emby内容为准"),
                 # ﹒
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(text='🔍 已阅，开始查询', switch_inline_query_current_chat=' ')]]),
+                    [[InlineKeyboardButton(text='开始查询', switch_inline_query_current_chat=' ')]]),
                 thumb_url=bot_photo, thumb_height=300, thumb_width=180)]
             return await inline_query.answer(results=results, cache_time=1, switch_pm_text=f'{ranks.logo} 搜索指南',
                                              is_personal=True,
@@ -40,11 +39,11 @@ async def find_sth_media(_, inline_query: InlineQuery):
             results = [InlineQueryResultArticle(
                 title=f"{ranks.logo}",
                 description=f"未查询到您的Emby账户，停止服务，请先注册",
-                input_message_content=InputTextMessageContent(f"点击此处 👇"),
+                input_message_content=InputTextMessageContent(f"点击此处"),
                 reply_markup=InlineKeyboardMarkup(
-                    [[InlineKeyboardButton(text='(●ˇ∀ˇ●)先注册', url=f't.me/{bot_name}?start')]]),
+                    [[InlineKeyboardButton(text='先注册', url=f't.me/{bot_name}?start')]]),
                 thumb_url=bot_photo, thumb_width=220, thumb_height=330)]
-            return await inline_query.answer(results=results, cache_time=1, switch_pm_text='👉 我要注册！',
+            return await inline_query.answer(results=results, cache_time=1, switch_pm_text='我要注册',
                                              is_personal=True,
                                              switch_pm_parameter='start')
         else:
@@ -58,7 +57,7 @@ async def find_sth_media(_, inline_query: InlineQuery):
                     description=f"没有更多信息 {Name}",
                     input_message_content=InputTextMessageContent(f"没有更多信息 {Name}"),
                     reply_markup=InlineKeyboardMarkup(
-                        [[InlineKeyboardButton(text='✔️ 重新搜索', switch_inline_query_current_chat=' ')]]),
+                        [[InlineKeyboardButton(text='重新搜索', switch_inline_query_current_chat=' ')]]),
                     thumb_url=bot_photo, thumb_width=220, thumb_height=330)]
                 await inline_query.answer(results=results, cache_time=1, switch_pm_text='查询结果',
                                           is_personal=True,
@@ -66,25 +65,25 @@ async def find_sth_media(_, inline_query: InlineQuery):
             else:
                 results = []
                 for i in ret_movies:
-                    typer = ['movie', '🎬'] if i['item_type'] == 'Movie' else ['tv', '📺']
+                    typer = ['movie', '电影'] if i['item_type'] == 'Movie' else ['tv', '剧集']
                     result = InlineQueryResultArticle(
                         title=f"{typer[1]} {i['title']} ({i['year']})",
                         # id=str(uuid.uuid4()),
                         description=f"{i['taglines']}-{i['overview']}",
                         input_message_content=InputTextMessageContent(
                             f"**{typer[1]}《{i['title']}》 [ ]({i['photo']})**\n\n"
-                            f"🧫**年份** | {i['year']}\n"
-                            f"🌐**地区** | {i['od']}\n"
-                            f"💠**类型** | {i['genres']}\n"
-                            f"⏱️**时长** | {i['runtime']}\n"
+                            f"**年份** | {i['year']}\n"
+                            f"**地区** | {i['od']}\n"
+                            f"**类型** | {i['genres']}\n"
+                            f"**时长** | {i['runtime']}\n"
                             # f"·**发行商:** {i['studios']}\n"
-                            f"**🧬加入日期** | {i['add']}\n\n"
+                            f"**加入日期** | {i['add']}\n\n"
                             f"**{i['taglines']}**\n"
                             f"{i['overview']}", disable_web_page_preview=False),
                         reply_markup=InlineKeyboardMarkup(
-                            [[InlineKeyboardButton(text=f'🍿 TMDB',
+                            [[InlineKeyboardButton(text='TMDB',
                                                    url=f'https://www.themoviedb.org/{typer[0]}/{i["tmdbid"]}'),
-                              InlineKeyboardButton(text=f'点击收藏 💘', callback_data=f'favorited:{i["item_id"]}')]]),
+                              InlineKeyboardButton(text='点击收藏', callback_data=f'favorited:{i["item_id"]}')]]),
                         # url=f't.me/{bot_name}?start=itemid-{i["item_id"]}')]]),
                         thumb_url=i['photo'], thumb_width=220, thumb_height=330)
                     results.append(result)
@@ -106,14 +105,14 @@ async def favorite_item(_, call):
         if success:
             _url = f"{emby.url}/emby/Items/{item_id}/Images/Primary?maxHeight=400&maxWidth=600&quality=90"
             try:
-                await bot.send_photo(chat_id=call.from_user.id, photo=_url, caption=f'**{title} 收藏成功！💘**')
+                await bot.send_photo(chat_id=call.from_user.id, photo=_url, caption=f'**{title} 收藏成功**')
             except:
-                await bot.send_message(chat_id=call.from_user.id, text=f'**{title} 收藏成功！💘**')
-            await callAnswer(call, f'{title} 收藏成功！💘', True)
+                await bot.send_message(chat_id=call.from_user.id, text=f'**{title} 收藏成功**')
+            await callAnswer(call, f'{title} 收藏成功', True)
         else:
-            await callAnswer(call, f'⚠️ 收藏失败！项目 {item_id}', True)
+            await callAnswer(call, f'收藏失败，项目 {item_id}', True)
     except Exception as e:
-        await callAnswer(call, '🤺 没有账户怎么收藏？', True)
+        await callAnswer(call, '没有账户，无法收藏', True)
 
 # @bot.on_chosen_inline_result(user_in_group_on_filter)
 # async def handle_chosen(_, chosen: ChosenInlineResult):

@@ -382,18 +382,18 @@ async def log_line_violation(
         lv_display = {'a': '白名单', 'b': '普通用户', 'c': '封禁用户', 'd': '未注册'}.get(user_lv, '未知')
 
         log_message = (
-            f"⚠️ 线路权限违规\n"
+            f"线路权限违规\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"👤 用户: {user_name or 'Unknown'}\n"
-            f"🆔 Emby ID: {user_id or 'Unknown'}\n"
-            f"📱 TG ID: {f'[{tg_id}](tg://user?id={tg_id})' if tg_id else 'Unknown'}\n"
-            f"🏷️ 用户等级: {lv_display}\n"
+            f"用户: {user_name or 'Unknown'}\n"
+            f"Emby ID: {user_id or 'Unknown'}\n"
+            f"TG ID: {f'[{tg_id}](tg://user?id={tg_id})' if tg_id else 'Unknown'}\n"
+            f"用户等级: {lv_display}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"📺 客户端: {client_name or 'Unknown'}\n"
-            f"🔑 会话ID: {session_id or 'Unknown'}\n"
+            f"客户端: {client_name or 'Unknown'}\n"
+            f"会话ID: {session_id or 'Unknown'}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"🚨 处理措施: {action_taken or '无'}\n"
-            f"⏰ 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"处理措施: {action_taken or '无'}\n"
+            f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
         LOGGER.warning(log_message)
@@ -432,10 +432,10 @@ async def handle_line_violation(
         reason = "您使用的线路与您的账户等级不匹配，请使用正确的线路"
         terminate_success = await emby.terminate_session(session_id, reason)
         if terminate_success:
-            action_taken_list.append("✅ 已终止会话")
+            action_taken_list.append("已终止会话")
             LOGGER.info(f"成功终止违规会话 {session_id}")
         else:
-            action_taken_list.append("❌ 终止会话失败")
+            action_taken_list.append("终止会话失败")
             LOGGER.error(f"终止违规会话失败 {session_id}")
 
     if block_user_enabled:
@@ -443,10 +443,10 @@ async def handle_line_violation(
         if block_success:
             if user_details:
                 sql_update_emby(Emby.tg == user_details.tg, lv="c")
-            action_taken_list.append("✅ 已封禁用户")
+            action_taken_list.append("已封禁用户")
             LOGGER.info(f"成功封禁违规用户 {emby_id}")
         else:
-            action_taken_list.append("❌ 封禁用户失败")
+            action_taken_list.append("封禁用户失败")
             LOGGER.error(f"封禁违规用户失败 {emby_id}")
 
     action_taken = " | ".join(action_taken_list) if action_taken_list else "仅记录，未采取行动"

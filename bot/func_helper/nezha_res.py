@@ -111,7 +111,7 @@ async def sever_info_komari_async(tz, tz_api, tz_id):
                 if latest_data:
                     # 解析数据
                     uptime_sec = latest_data.get('uptime', 0)
-                    uptime = f'{int(uptime_sec / 86400)} 天' if uptime_sec > 0 else '⚠️掉线辣'
+                    uptime = f'{int(uptime_sec / 86400)} 天' if uptime_sec > 0 else '已离线'
                     
                     cpu_data = latest_data.get('cpu', {})
                     CPU = f"{cpu_data.get('usage', 0):.2f}"
@@ -129,7 +129,7 @@ async def sever_info_komari_async(tz, tz_api, tz_id):
                     NetInTransfer = humanize.naturalsize(network_data.get('totalDown', 0), gnu=True)
                     NetOutTransfer = humanize.naturalsize(network_data.get('totalUp', 0), gnu=True)
                 else:
-                    uptime = '⚠️掉线辣'
+                    uptime = '已离线'
                     CPU = "0.00"
                     MemTotal = "0"
                     MemUsed = "0"
@@ -140,7 +140,7 @@ async def sever_info_komari_async(tz, tz_api, tz_id):
                     NetOutSpeed = "0"
             else:
                 # 没有状态数据，可能离线
-                uptime = '⚠️掉线辣'
+                uptime = '已离线'
                 CPU = "0.00"
                 MemTotal = humanize.naturalsize(node.get('mem_total', 0), gnu=True)
                 MemUsed = "0"
@@ -154,11 +154,11 @@ async def sever_info_komari_async(tz, tz_api, tz_id):
             region = node.get('region', '')
             display_name = f"{region} {node_name}".strip() if region else node_name
 
-            status_msg = f"· 🌐 服务器 | {display_name} · {uptime}\n" \
-                         f"· 💫 CPU | {CPU}% \n" \
-                         f"· 🌩️ 内存 | {Mempercent}% [{MemUsed}/{MemTotal}]\n" \
-                         f"· ⚡ 网速 | ↓{NetInSpeed}/s  ↑{NetOutSpeed}/s\n" \
-                         f"· 🌊 流量 | ↓{NetInTransfer}  ↑{NetOutTransfer}\n"
+            status_msg = f"· 服务器 | {display_name} · {uptime}\n" \
+                         f"· CPU | {CPU}% \n" \
+                         f"· 内存 | {Mempercent}% [{MemUsed}/{MemTotal}]\n" \
+                         f"· 网速 | ↓{NetInSpeed}/s  ↑{NetOutSpeed}/s\n" \
+                         f"· 流量 | ↓{NetInTransfer}  ↑{NetOutTransfer}\n"
             b.append(dict(name=node_name, id=node_uuid, server=status_msg))
 
         await api.close()
@@ -267,7 +267,7 @@ def sever_info_v0(tz, tz_api, tz_id):
             res = r.get(tz_url, headers=tz_headers).json()
             detail = res["result"][0]
             """cpu"""
-            uptime = f'{int(detail["status"]["Uptime"] / 86400)} 天' if detail["status"]["Uptime"] != 0 else '⚠️掉线辣'
+            uptime = f'{int(detail["status"]["Uptime"] / 86400)} 天' if detail["status"]["Uptime"] != 0 else '已离线'
             CPU = f"{detail['status']['CPU']:.2f}"
             """内存"""
             MemTotal = humanize.naturalsize(detail['host']['MemTotal'], gnu=True)
@@ -281,11 +281,11 @@ def sever_info_v0(tz, tz_api, tz_id):
             NetInSpeed = humanize.naturalsize(detail['status']['NetInSpeed'], gnu=True)
             NetOutSpeed = humanize.naturalsize(detail['status']['NetOutSpeed'], gnu=True)
 
-            status_msg = f"· 🌐 服务器 | {detail['name']} · {uptime}\n" \
-                         f"· 💫 CPU | {CPU}% \n" \
-                         f"· 🌩️ 内存 | {Mempercent}% [{MemUsed}/{MemTotal}]\n" \
-                         f"· ⚡ 网速 | ↓{NetInSpeed}/s  ↑{NetOutSpeed}/s\n" \
-                         f"· 🌊 流量 | ↓{NetInTransfer}  ↑{NetOutTransfer}\n"
+            status_msg = f"· 服务器 | {detail['name']} · {uptime}\n" \
+                         f"· CPU | {CPU}% \n" \
+                         f"· 内存 | {Mempercent}% [{MemUsed}/{MemTotal}]\n" \
+                         f"· 网速 | ↓{NetInSpeed}/s  ↑{NetOutSpeed}/s\n" \
+                         f"· 流量 | ↓{NetInTransfer}  ↑{NetOutTransfer}\n"
             b.append(dict(name=f'{detail["name"]}', id=detail["id"], server=status_msg))
         return b
     except:
@@ -318,7 +318,7 @@ async def sever_info_v1_async(tz, tz_username, tz_password, tz_id):
             # 判断在线状态
             # V1 中使用 state 字段判断在线状态
             if state:
-                uptime = f'{int(state.get("uptime", 0) / 86400)} 天' if state.get("uptime", 0) != 0 else '⚠️掉线辣'
+                uptime = f'{int(state.get("uptime", 0) / 86400)} 天' if state.get("uptime", 0) != 0 else '已离线'
                 CPU = f"{state.get('cpu', 0):.2f}"
                 
                 mem_total = host.get('mem_total', 0)
@@ -333,7 +333,7 @@ async def sever_info_v1_async(tz, tz_username, tz_password, tz_id):
                 NetInSpeed = humanize.naturalsize(state.get('net_in_speed', 0), gnu=True)
                 NetOutSpeed = humanize.naturalsize(state.get('net_out_speed', 0), gnu=True)
             else:
-                uptime = '⚠️掉线辣'
+                uptime = '已离线'
                 CPU = "0.00"
                 MemTotal = "0"
                 MemUsed = "0"
@@ -343,11 +343,11 @@ async def sever_info_v1_async(tz, tz_username, tz_password, tz_id):
                 NetInSpeed = "0"
                 NetOutSpeed = "0"
 
-            status_msg = f"· 🌐 服务器 | {server['name']} · {uptime}\n" \
-                         f"· 💫 CPU | {CPU}% \n" \
-                         f"· 🌩️ 内存 | {Mempercent}% [{MemUsed}/{MemTotal}]\n" \
-                         f"· ⚡ 网速 | ↓{NetInSpeed}/s  ↑{NetOutSpeed}/s\n" \
-                         f"· 🌊 流量 | ↓{NetInTransfer}  ↑{NetOutTransfer}\n"
+            status_msg = f"· 服务器 | {server['name']} · {uptime}\n" \
+                         f"· CPU | {CPU}% \n" \
+                         f"· 内存 | {Mempercent}% [{MemUsed}/{MemTotal}]\n" \
+                         f"· 网速 | ↓{NetInSpeed}/s  ↑{NetOutSpeed}/s\n" \
+                         f"· 流量 | ↓{NetInTransfer}  ↑{NetOutTransfer}\n"
             b.append(dict(name=f'{server["name"]}', id=server["id"], server=status_msg))
         
         await api.close()

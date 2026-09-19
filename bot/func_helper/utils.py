@@ -1,6 +1,6 @@
 import pytz
 
-from bot import bot, _open, save_config, owner, admins, bot_name, ranks, schedall, group, config
+from bot import owner, admins, group, config, schedall, bot_name, ranks
 from bot.sql_helper.sql_code import sql_add_code
 from bot.sql_helper.sql_emby import sql_get_emby
 from cacheout import Cache
@@ -22,57 +22,24 @@ def judge_admins(uid):
 
 # @cache.memoize(ttl=60)
 async def members_info(tg=None, name=None):
-    """
-    基础资料 - 可传递 tg,emby_name
-    :param tg: tg_id
-    :param name: emby_name
-    :return: name, lv, ex, us, embyid
-    """
+    """Return the user's display name, level, expiry text, and Emby ID."""
     if tg is None:
         tg = name
     data = sql_get_emby(tg)
     if data is None:
         return None
+    display_name = data.name or '无账户信息'
+    lv_dict = {'a': '白名单', 'b': '**正常**', 'c': '**已禁用**', 'd': '未注册'}
+    lv = lv_dict.get(data.lv, '未知')
+    if lv == '白名单':
+        ex = '+ ∞'
+    elif data.name is not None and schedall.low_activity and not schedall.check_ex:
+        ex = f'__若{config.activity_check_days}天无观看将封禁__'
+    elif data.name is not None and not schedall.low_activity and not schedall.check_ex:
+        ex = ' __无需保号，放心食用__'
     else:
-        name = data.name or '无账户信息'
-        embyid = data.embyid
-        us = data.us
-        lv_dict = {'a': '白名单', 'b': '**正常**', 'c': '**已禁用**', 'd': '未注册'}  # , 'e': '**21天未活跃/无信息**'
-        lv = lv_dict.get(data.lv, '未知')
-        if lv == '白名单':
-            ex = '+ ∞'
-        elif data.name is not None and schedall.low_activity and not schedall.check_ex:
-            ex = f'__若{config.activity_check_days}天无观看将封禁__'
-        elif data.name is not None and not schedall.low_activity and not schedall.check_ex:
-            ex = ' __无需保号，放心食用__'
-        else:
-            ex = data.ex or '无账户信息'
-        return name, lv, ex, us, embyid
-
-
-async def open_check():
-    """
-    对config查询open
-    :return: open_stats, all_user, tem, timing
-    """
-    open_stats = _open.stat
-    all_user = _open.all_user
-    tem = _open.tem
-    timing = _open.timing
-    return open_stats, all_user, tem, timing
-
-
-def tem_adduser():
-    _open.tem = _open.tem + 1
-    if _open.tem >= _open.all_user:
-        _open.stat = False
-    save_config()
-
-
-def tem_deluser():
-    _open.tem = _open.tem - 1
-    save_config()
-
+        ex = data.ex or '无账户信息'
+    return display_name, lv, ex, data.embyid
 
 from random import choice
 import string
@@ -88,115 +55,30 @@ async def pwd_create(length=8, chars=string.ascii_letters + string.digits):
     return ''.join([choice(chars) for i in range(length)])
 
 
-# 创建注册
-async def cr_link_one(tg: int, times, count, days: int, method: str):
-    """
-    创建连接
-    :param tg:
-    :param times:
-    :param count:
-    :param days:
-    :param method:
-    :return:
-    """
+async def create_renew_codes(tg: int, times, count, days: int, method: str):
+    """Generate and persist renewal codes or Telegram deep links."""
     links = ''
     code_list = []
-    i = 1
-    if method == 'code':
-        while i <= count:
-            p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Register_{p}'
-            code_list.append(uid)
-            link = f'`{uid}`\n'
-            links += link
-            i += 1
-    elif method == 'link':
-        while i <= count:
-            p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Register_{p}'
-            code_list.append(uid)
-            link = f't.me/{bot_name}?start={uid}\n'
-            links += link
-            i += 1
+    for _ in range(count):
+        uid = f'{ranks.logo}-{times}-Renew_{await pwd_create(10)}'
+        code_list.append(uid)
+        links += f'`{uid}`\n' if method == 'code' else f't.me/{bot_name}?start={uid}\n'
     if sql_add_code(code_list, tg, days) is False:
         return None
     return links
 
 
-# 创建续期
-async def rn_link_one(tg: int, times, count, days: int, method: str):
-    """
-    创建连接
-    :param tg:
-    :param times:
-    :param count:
-    :param days:
-    :param method:
-    :return:
-    """
+async def create_whitelist_codes(tg: int, count: int, method: str):
+    """Generate and persist whitelist activation codes or deep links."""
     links = ''
     code_list = []
-    i = 1
-    if method == 'code':
-        while i <= count:
-            p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Renew_{p}'
-            code_list.append(uid)
-            link = f'`{uid}`\n'
-            links += link
-            i += 1
-    elif method == 'link':
-        while i <= count:
-            p = await pwd_create(10)
-            uid = f'{ranks.logo}-{times}-Renew_{p}'
-            code_list.append(uid)
-            link = f't.me/{bot_name}?start={uid}\n'
-            links += link
-            i += 1
-    if sql_add_code(code_list, tg, days) is False:
-        return None
-    return links
-
-
-async def wl_link_one(tg: int, count: int, method: str):
-    """
-    创建白名单激活码
-    :param tg: 创建者 tg id
-    :param count: 数量
-    :param method: 'code' 或 'link'
-    :return: 格式化字符串或 None（数据库失败）
-    """
-    links = ''
-    code_list = []
-    i = 1
-    if method == 'code':
-        while i <= count:
-            p = await pwd_create(10)
-            uid = f'{ranks.logo}-Whitelist_{p}'
-            code_list.append(uid)
-            links += f'`{uid}`\n'
-            i += 1
-    elif method == 'link':
-        while i <= count:
-            p = await pwd_create(10)
-            uid = f'{ranks.logo}-Whitelist_{p}'
-            code_list.append(uid)
-            links += f't.me/{bot_name}?start={uid}\n'
-            i += 1
+    for _ in range(count):
+        uid = f'{ranks.logo}-Whitelist_{await pwd_create(10)}'
+        code_list.append(uid)
+        links += f'`{uid}`\n' if method == 'code' else f't.me/{bot_name}?start={uid}\n'
     if sql_add_code(code_list, tg, 0) is False:
         return None
     return links
-
-
-async def cr_link_two(tg: int, for_tg, days: int):
-    code_list = []
-    invite_code = await pwd_create(11)
-    uid = f'{for_tg}-{invite_code}'
-    code_list.append(uid)
-    link = f't.me/{bot_name}?start={uid}'
-    if sql_add_code(code_list, tg, days) is False:
-        return None
-    return link
 
 
 from datetime import datetime, timedelta

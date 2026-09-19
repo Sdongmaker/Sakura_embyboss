@@ -109,7 +109,7 @@ async def warmup_peer_cache():
         except Exception as e:
             LOGGER.warning(f"peer 预热失败 (gid={gid}): {e}")
 
-# 将来自己要是重写，希望不要把/cancel当关键词，用call.data，省代码还好看，切记。
+# 重写时不要把 /cancel 当关键词，改用 call.data。
 
 async def sendMessage(message, text: str, buttons=None, timer=None, send=False, chat_id=None, parse_mode: Optional["enums.ParseMode"] = None):
     """
@@ -163,11 +163,11 @@ async def editMessage(message, text: str, buttons=None, timer=None, parse_mode: 
         return await editMessage(message, text, buttons, parse_mode=parse_mode)
     except BadRequest as e:
         if e.ID == 'BUTTON_URL_INVALID':
-            # await editMessage(message, text='⚠️ 底部按钮设置失败。', buttons=back_start_ikb)
+            # await editMessage(message, text='底部按钮设置失败。', buttons=back_start_ikb)
             return False
         # 判断是否是因为编辑到一样的消息
         if e.ID == "MESSAGE_NOT_MODIFIED" or e.ID == 'MESSAGE_ID_INVALID':
-            # await callAnswer(message, "慢速模式开启，切勿多点\n慢一点，慢一点，生活更有趣 - zztai", True)
+            # await callAnswer(message, "慢速模式开启，请勿频繁点击", True)
             return False
         else:
             # 记录或处理其他异常
@@ -247,13 +247,13 @@ async def deleteMessage(message, timer=None):
     if isinstance(message, CallbackQuery):
         try:
             await message.message.delete()
-            return await callAnswer(message, '✔️ Done!')  # 返回 True 表示删除成功
+            return await callAnswer(message, '完成')  # 返回 True 表示删除成功
         except FloodWait as f:
             LOGGER.warning(str(f))
             await asyncio.sleep(f.value * 1.2)
             return await deleteMessage(message, timer)  # 重新调用自己的函数
         except Forbidden as e:
-            await callAnswer(message, f'⚠️ 消息已过期，请重新 唤起面板\n/start', True)
+            await callAnswer(message, f'消息已过期，请重新唤起面板\n/start', True)
         except BadRequest as e:
             pass
         except Exception as e:
@@ -269,7 +269,7 @@ async def deleteMessage(message, timer=None):
             return await deleteMessage(message, timer)  # 重新调用自己的函数
         except Forbidden as e:
             LOGGER.warning(e)
-            await message.reply(f'⚠️ **错误！**检查群组 `{message.chat.id}` 权限 【删除消息】')
+            await message.reply(f'**错误！**检查群组 `{message.chat.id}` 权限 【删除消息】')
             # return await deleteMessage(send, 60)
         except BadRequest as e:
             pass
@@ -304,7 +304,7 @@ async def callListen(callbackquery, timer: int = 120, buttons=None):
     try:
         return await callbackquery.message.chat.listen(filters.text, timeout=timer)
     except ListenerTimeout:
-        await editMessage(callbackquery, '💦 __没有获取到您的输入__ **会话状态自动取消！**', buttons=buttons)
+        await editMessage(callbackquery, '__没有获取到您的输入__ **会话状态自动取消！**', buttons=buttons)
         return False
 
 
@@ -312,7 +312,7 @@ async def call_dice_listen(callbackquery, timer: int = 120, buttons=None):
     try:
         return await callbackquery.message.chat.listen(filters.dice, timeout=timer)
     except ListenerTimeout:
-        await editMessage(callbackquery, '💦 __没有获取到您的输入__ **会话状态自动取消！**', buttons=buttons)
+        await editMessage(callbackquery, '__没有获取到您的输入__ **会话状态自动取消！**', buttons=buttons)
         return False
 
 
@@ -331,7 +331,7 @@ async def ask_return(update, text, timer: int = 120, button=None):
     try:
         return await update.chat.ask(text=text, timeout=timer)
     except ListenerTimeout:
-        await sendMessage(update, '💦 __没有获取到您的输入__ **会话状态自动取消！**', buttons=button)
+        await sendMessage(update, '__没有获取到您的输入__ **会话状态自动取消！**', buttons=button)
         return None
 
 

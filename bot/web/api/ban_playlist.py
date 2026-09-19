@@ -27,39 +27,39 @@ async def ban_playlist(eid: str):
     if user is None:
         details = ''
         if await emby_policy_all(embyid=eid, disable=True):
-            details += "已拦截到疑似敏感操作播放列表，未在emby数据库中找到此数据，但已斩杀该用户（封禁）"
+            details += "已拦截到疑似敏感操作播放列表，未在emby数据库中找到此数据，但已封禁该用户"
         else:
-            details += "已拦截到疑似敏感操作播放列表，未在emby数据库中找到此数据，未能斩杀该用户（封禁）。详细时间见log记录，请手动斩杀。"
+            details += "已拦截到疑似敏感操作播放列表，未在emby数据库中找到此数据，未能封禁该用户。详细时间见log记录，请手动封禁。"
         info = {"user_id": None, "embyid": None, "is_baned": False, "details": details}
         text = (
-            f"🚫 新建播放列表拦截\n"
+            f"新建播放列表拦截\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"👤 用户: Unknown\n"
-            f"🆔 Emby ID: {eid}\n"
-            f"📱 TG ID: Unknown\n"
-            f"🏷️ 用户等级: 未注册\n"
+            f"用户: Unknown\n"
+            f"Emby ID: {eid}\n"
+            f"TG ID: Unknown\n"
+            f"用户等级: 未注册\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"🚨 处理措施: {details}\n"
-            f"⏰ 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"处理措施: {details}\n"
+            f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         await bot.send_message(chat_id=group[0], text=text)
         LOGGER.warning(text)
         return info
 
     if await emby_policy_all(tg=user.tg, embyid=eid, disable=True):
-        action = "✅ 已封禁用户"
+        action = "已封禁用户"
         info = {"user_id": user.tg, "emby_name": user.name, "embyid": eid, "is_baned": True,
-                "details": "已拦截疑似敏感操作播放列表，用户已被斩杀（封禁）。请向权限管理员描述信息。"}
+                "details": "已拦截疑似敏感操作播放列表，用户已被封禁。请向权限管理员描述信息。"}
         text = (
-            f"🚫 新建播放列表拦截\n"
+            f"新建播放列表拦截\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"👤 用户: {user.name}\n"
-            f"🆔 Emby ID: {eid}\n"
-            f"📱 TG ID: [{user.tg}](tg://user?id={user.tg})\n"
-            f"🏷️ 用户等级: {lv_display.get(user.lv, '未知')}\n"
+            f"用户: {user.name}\n"
+            f"Emby ID: {eid}\n"
+            f"TG ID: [{user.tg}](tg://user?id={user.tg})\n"
+            f"用户等级: {lv_display.get(user.lv, '未知')}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"🚨 处理措施: {action}\n"
-            f"⏰ 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"处理措施: {action}\n"
+            f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         try:
             out = await bot.send_message(group[0], text)
@@ -69,19 +69,19 @@ async def ban_playlist(eid: str):
             text += str(e)
 
     else:
-        action = "❌ 封禁失败，请手动处理"
+        action = "封禁失败，请手动处理"
         info = {"user_id": user.tg, "emby_name": user.name, "embyid": eid, "is_baned": False,
-                "details": "已拦截疑似敏感操作播放列表，斩杀（封禁）失败，请手动处理。"}
+                "details": "已拦截疑似敏感操作播放列表，封禁失败，请手动处理。"}
         text = (
-            f"🚫 新建播放列表拦截\n"
+            f"新建播放列表拦截\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"👤 用户: {user.name}\n"
-            f"🆔 Emby ID: {eid}\n"
-            f"📱 TG ID: [{user.tg}](tg://user?id={user.tg})\n"
-            f"🏷️ 用户等级: {lv_display.get(user.lv, '未知')}\n"
+            f"用户: {user.name}\n"
+            f"Emby ID: {eid}\n"
+            f"TG ID: [{user.tg}](tg://user?id={user.tg})\n"
+            f"用户等级: {lv_display.get(user.lv, '未知')}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"🚨 处理措施: {action}\n"
-            f"⏰ 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"处理措施: {action}\n"
+            f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         try:
             out = await bot.send_message(group[0], text)

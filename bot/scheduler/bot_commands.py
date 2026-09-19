@@ -58,7 +58,7 @@ class BotCommands:
                                                   scope=BotCommandScopeChatMember(chat_id=i, user_id=owner))
                 except:
                     pass
-            LOGGER.info("————初始化 命令显示 done————")
+            LOGGER.info("初始化命令显示完成")
         except ConnectionError as e:
             LOGGER.error(f'命令初始化错误：{e}')
 

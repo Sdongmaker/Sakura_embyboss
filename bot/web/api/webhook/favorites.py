@@ -11,7 +11,7 @@ async def send_favorite_notification(tg_id: int, embyname: str, item_name: str, 
     """发送收藏通知到Telegram"""
     try:
         action = "收藏" if is_favorite else "取消收藏"
-        message = f"📢 您的Emby账号 {embyname} {action}了《{item_name}》"
+        message = f"您的Emby账号 {embyname} {action}了《{item_name}》"
         
         await bot.send_message(
             chat_id=tg_id,

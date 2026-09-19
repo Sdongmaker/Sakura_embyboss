@@ -16,8 +16,8 @@ from bot.func_helper.msg_utils import callAnswer, editMessage
 async def server(_, call):
     data = sql_get_emby(tg=call.from_user.id)
     if not data:
-        return await editMessage(call, '⚠️ 数据库没有你，请重新 /start录入')
-    await callAnswer(call, '🌐查询中...')
+        return await editMessage(call, '数据库没有你，请重新 /start录入')
+    await callAnswer(call, '查询中...')
     try:
         # 支持数字ID (Nezha) 和 UUID (Komari)
         server_id = call.data.split(':')[1]
@@ -27,7 +27,7 @@ async def server(_, call):
             pass  # 保持为字符串 UUID (Komari)
     except IndexError:
         # 第一次查看
-        send = await editMessage(call, "**▎🌐查询中...\n\nο(=•ω＜=)ρ⌒☆ 发送bibo电波~bibo~ \n⚡ 点击按钮查看相应服务器状态**")
+        send = await editMessage(call, "**查询中...\n\n点击按钮查看相应服务器状态**")
         if send is False:
             return
 
@@ -45,16 +45,16 @@ async def server(_, call):
         if emby_whitelist_line:
             line += f'\n{emby_whitelist_line}'
     else:
-        line = ' - **无权查看**'
+        line = '**无权查看**'
     try:
         online = await emby.get_current_playing_count()
         if online == -1:
-            online = 'Emby服务器断连 ·0'
+            online = 'Emby服务器断连 0'
     except Exception:
-        online = 'Emby服务器断连 ·0'
-    text = f'**▎↓目前线路 & 用户密码：**`{pwd}`\n' \
+        online = 'Emby服务器断连 0'
+    text = f'**目前线路 & 用户密码：**`{pwd}`\n' \
            f'{line}\n\n' \
            f'{server_info}' \
-           f'· 🎬 在线 | **{online}** 人\n\n' \
-           f'**· 🌏 [{(datetime.now(timezone(timedelta(hours=8)))).strftime("%Y-%m-%d %H:%M:%S")}]**'
+           f'· 在线 | **{online}** 人\n\n' \
+           f'**· [{(datetime.now(timezone(timedelta(hours=8)))).strftime("%Y-%m-%d %H:%M:%S")}]**'
     await editMessage(call, text, buttons=keyboard)

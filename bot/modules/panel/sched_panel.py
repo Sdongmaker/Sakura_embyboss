@@ -40,10 +40,8 @@ action_dict = {
     "check_ex": check_expired,
     "low_activity": check_low_activity,
     "backup_db": auto_backup_db,
-    "partition_check": check_partition_access,
 }
 
-# 字典，对应的操作函数的参数和id
 args_dict = {
     "dayrank": {'hour': 18, 'minute': 30, 'id': 'day_ranks'},
     "weekrank": {'day_of_week': "sun", 'hour': 23, 'minute': 59, 'id': 'week_ranks'},
@@ -52,7 +50,6 @@ args_dict = {
     "check_ex": {'hour': 1, 'minute': 30, 'id': 'check_expired'},
     "low_activity": {'hour': 8, 'minute': 30, 'id': 'check_low_activity'},
     "backup_db": {'hour': 2, 'minute': 30, 'id': 'backup_db'},
-    "partition_check": {'minute': '*/10', 'id': 'partition_check'},
 }
 
 
@@ -70,7 +67,7 @@ set_all_sche()
 async def sched_panel(_, msg):
     # await deleteMessage(msg)
     await editMessage(msg,
-                      text=f'🎮 **管理定时任务面板**\n\n',
+                      text=f'**管理定时任务面板**\n\n',
                       buttons=sched_buttons())
 
 
@@ -87,7 +84,7 @@ async def sched_change_policy(_, call):
             scheduler.add_job(action, 'cron', **args)
         setattr(schedall, method, not getattr(schedall, method))
         save_config()
-        await asyncio.gather(callAnswer(call, f'⭕️ {method} 更改成功'), sched_panel(_, call.message))
+        await asyncio.gather(callAnswer(call, f'{method} 更改成功'), sched_panel(_, call.message))
     except IndexError:
         await sched_panel(_, call.message)
 
@@ -101,10 +98,10 @@ async def check_ex_admin(_, msg):
     except:
         pass
     if confirm == 'true':
-        send = await msg.reply("🍥 正在运行 【到期检测】。。。")
-        await asyncio.gather(check_expired(), send.edit("✅ 【到期检测结束】"))
+        send = await msg.reply("正在运行 【到期检测】")
+        await asyncio.gather(check_expired(), send.edit("【到期检测结束】"))
     else:
-        await msg.reply("🔔 请输入 `/check_ex true` 确认运行")
+        await msg.reply("请输入 `/check_ex true` 确认运行")
 
 
 # bot数据库手动备份
@@ -132,10 +129,10 @@ async def run_low_ac(_, msg):
     except:
         pass
     if confirm == 'true':
-        send = await msg.reply("⭕ 不活跃检测运行ing···")
+        send = await msg.reply("不活跃检测运行中")
         await asyncio.gather(check_low_activity(), send.delete())
     else:
-        await msg.reply("🔔 请输入 `/low_activity true` 确认运行")
+        await msg.reply("请输入 `/low_activity true` 确认运行")
 
 @bot.on_message(filters.command('uranks', prefixes) & admins_on_filter)
 async def shou_dong_uplayrank(_, msg):
@@ -144,18 +141,18 @@ async def shou_dong_uplayrank(_, msg):
         days = int(msg.command[1])
         await user_plays_rank(days=days)
     except (IndexError, ValueError):
-        await msg.reply("🔔 请输入 `/uranks 天数`")
+        await msg.reply("请输入 `/uranks 天数`")
 @bot.on_message(filters.command('sync_favorites', prefixes) & admins_on_filter)
 async def sync_favorites_admin(_, msg):
     await deleteMessage(msg)
-    await msg.reply("⭕ 正在同步用户收藏记录...")
+    await msg.reply("正在同步用户收藏记录...")
     await sync_favorites()
-    await msg.reply("✅ 用户收藏记录同步完成")
+    await msg.reply("用户收藏记录同步完成")
 
 @bot.on_message(filters.command('restart', prefixes) & admins_on_filter)
 async def restart_bot(_, msg):
     await deleteMessage(msg)
-    send = await msg.reply("Restarting，等待几秒钟。")
+    send = await msg.reply("正在重启，请等待几秒钟。")
     schedall.restart_chat_id = send.chat.id
     schedall.restart_msg_id = send.id
     save_config()
@@ -170,10 +167,10 @@ async def restart_bot(_, msg):
 @bot.on_callback_query(filters.regex('uranks') & user_in_group_on_filter)
 async def page_uplayrank(_, call):
     j, days = map(int, call.data.split(":")[1].split('_'))
-    await callAnswer(call, f'将为您翻到第 {j} 页')
+    await callAnswer(call, f'正在翻到第 {j} 页')
     a, b = await Uplaysinfo.users_playback_list(days)
     if not a:
-        return await callAnswer(call, f'🍥 获取过去{days}天UserPlays失败了嘤嘤嘤 ~ 手动重试', True)
+        return await callAnswer(call, f'获取过去{days}天UserPlays失败，请手动重试', True)
     button = await plays_list_button(b, j, days)
     text = a[j - 1]
     await editMessage(call, text, buttons=button)
@@ -252,7 +249,7 @@ async def update_bot(force: bool = False, msg: Message = None, manual: bool = Fa
 @bot.on_message(filters.command('update_bot', prefixes) & admins_on_filter)
 async def get_update_bot(_, msg: Message):
     delete_task = msg.delete()
-    send_task = bot.send_message(chat_id=msg.chat.id, text='正在更新bot代码，请稍等。。。')
+    send_task = bot.send_message(chat_id=msg.chat.id, text='正在更新bot代码，请稍等...')
     results = await asyncio.gather(delete_task, send_task)
     # results[1] 是发送消息的结果，从中提取 chat_id 和 message_id
     if len(results) == 2 and isinstance(results[1], Message):

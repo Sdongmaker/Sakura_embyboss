@@ -19,25 +19,25 @@ ITEMS_PER_PAGE = 10
 @bot.on_callback_query(filters.regex('download_center') & user_in_group_on_filter)
 async def call_download_center(_, call):
     if not moviepilot.status:
-        return await callAnswer(call, '❌ 管理员未开启点播功能', True)
-    await callAnswer(call, '🔍 点播中心')
-    await editMessage(call, '🔍 欢迎进入点播中心', buttons=re_download_center_ikb)
+        return await callAnswer(call, '管理员未开启点播功能', True)
+    await callAnswer(call, '进入点播中心')
+    await editMessage(call, '点播中心', buttons=re_download_center_ikb)
 
 
 @bot.on_callback_query(filters.regex('get_resource') & user_in_group_on_filter)
 async def download_media(_, call):
     if not moviepilot.status:
-        return await callAnswer(call, '❌ 管理员未开启点播功能', True)
+        return await callAnswer(call, '管理员未开启点播功能', True)
 
     emby_user = sql_get_emby(tg=call.from_user.id)
     if not emby_user:
-        return await editMessage(call, '⚠️ 数据库没有你，请重新 /start录入')
+        return await editMessage(call, '数据库没有你，请重新 /start录入')
     if emby_user.lv is None or emby_user.lv not in ['a', 'b']:
-        return await editMessage(call, '🫡 您没有权限使用此功能', buttons=re_download_center_ikb)
+        return await editMessage(call, '您没有权限使用此功能', buttons=re_download_center_ikb)
     if not judge_admins(emby_user.tg) and moviepilot.lv == 'a' and emby_user.lv != 'a':
-        return await editMessage(call, '🫡 您没有权限使用此功能，仅限白名单用户可用', buttons=re_download_center_ikb)
+        return await editMessage(call, '您没有权限使用此功能，仅限白名单用户可用', buttons=re_download_center_ikb)
 
-    await asyncio.gather(callAnswer(call, f'🔍 请输入你想求的资源名称'))
+    await asyncio.gather(callAnswer(call, f'请输入要点播的资源名称'))
     await editMessage(call,
                       "请在120s内对我发送你想点播的资源名称，\n退出点 /cancel")
 
@@ -45,17 +45,17 @@ async def download_media(_, call):
     if txt is False:
         return
     if txt.text == '/cancel':
-        await asyncio.gather(txt.delete(), editMessage(call, '🔍 已取消操作', buttons=back_members_ikb))
+        await asyncio.gather(txt.delete(), editMessage(call, '已取消操作', buttons=back_members_ikb))
         return
 
     # 记录用户的搜索文本
     user_search_data[call.from_user.id] = txt.text
 
     # 先查询emby库中是否存在
-    await editMessage(call, '🔍 正在查询Emby库，请稍后...')
+    await editMessage(call, '正在查询Emby库，请稍后...')
     emby_results = await emby.get_movies(title=txt.text)
     if emby_results:
-        text = "🎯 Emby库中已存在以下相关资源:\n\n"
+        text = "Emby库中已存在以下相关资源:\n\n"
         for item in emby_results:
             text += f"• {item['title']} ({item['year']})\n"
         text += "\n是否仍要继续搜索站点资源?"
@@ -67,39 +67,39 @@ async def download_media(_, call):
 
 @bot.on_callback_query(filters.regex('continue_search') & user_in_group_on_filter)
 async def continue_search(_, call):
-    await callAnswer(call, '🔍 继续搜索')
+    await callAnswer(call, '继续搜索')
     # 使用之前保存的搜索文本
     search_text = user_search_data.get(call.from_user.id)
     if not search_text:
-        await editMessage(call.message, '❌ 未找到搜索记录，请重新搜索', buttons=re_download_center_ikb)
+        await editMessage(call.message, '未找到搜索记录，请重新搜索', buttons=re_download_center_ikb)
         return
     await search_site_resources(call, search_text)
 
 
 @bot.on_callback_query(filters.regex('cancel_search') & user_in_group_on_filter)
 async def cancel_search(_, call):
-    await callAnswer(call, '❌ 取消搜索')
+    await callAnswer(call, '取消搜索')
     # 清除用户的搜索记录
     user_search_data.pop(call.from_user.id, None)
-    await editMessage(call.message, '🔍 已取消搜索', buttons=re_download_center_ikb)
+    await editMessage(call.message, '已取消搜索', buttons=re_download_center_ikb)
 @bot.on_callback_query(filters.regex('cancel_download') & user_in_group_on_filter)
 async def cancel_download(_, call):
-    await callAnswer(call, '❌ 取消下载')
+    await callAnswer(call, '取消下载')
     user_search_data.pop(call.from_user.id, None)
-    await editMessage(call.message, '🔍 已取消下载', buttons=re_download_center_ikb)
+    await editMessage(call.message, '已取消下载', buttons=re_download_center_ikb)
 
 async def search_site_resources(call, keyword, page=1, all_result=None):
     """搜索站点资源并显示结果"""
     try:
         if page == 1:
-            await editMessage(call.message, '🔍 正在搜索站点资源，请稍后...')
+            await editMessage(call.message, '正在搜索站点资源，请稍后...')
         if all_result is None:
             success, all_result = await search(keyword)
             if not success:
-                await editMessage(call.message, '🤷‍♂️ 搜索站点资源失败，请稍后再试', buttons=re_download_center_ikb)
+                await editMessage(call.message, '搜索站点资源失败，请稍后再试', buttons=re_download_center_ikb)
                 return
         if all_result is None or len(all_result) == 0:
-            await editMessage(call.message, '🤷‍♂️ 没有找到相关资源', buttons=re_download_center_ikb)
+            await editMessage(call.message, '没有找到相关资源', buttons=re_download_center_ikb)
             return
 
         # 计算分页
@@ -136,7 +136,7 @@ async def search_site_resources(call, keyword, page=1, all_result=None):
 
     except Exception as e:
         LOGGER.error(f"搜索站点资源时出错: {str(e)}")
-        await editMessage(call.message, '❌ 搜索过程中出错', buttons=re_download_center_ikb)
+        await editMessage(call.message, '搜索过程中出错', buttons=re_download_center_ikb)
 
 
 def format_resource_info(index, item):
@@ -190,15 +190,15 @@ async def handle_resource_selection(call, result):
         if txt is False:
             user_search_data.pop(call.from_user.id, None)
 
-            await asyncio.gather(editMessage(msg, '🔍 已取消操作', buttons=back_members_ikb))
+            await asyncio.gather(editMessage(msg, '已取消操作', buttons=back_members_ikb))
             return
         elif txt.text == '/cancel':
             user_search_data.pop(call.from_user.id, None)
-            await asyncio.gather(editMessage(msg, '🔍 已取消操作', buttons=back_members_ikb))
+            await asyncio.gather(editMessage(msg, '已取消操作', buttons=back_members_ikb))
             return
         else:
             try:
-                await editMessage(msg, '🔍 正在处理，请稍后')
+                await editMessage(msg, '正在处理，请稍后')
                 index = int(txt.text)
                 torrent_info = result[index-1]['torrent_info']
                 # 兼容mp v2的api，加入了torrent_in
@@ -216,20 +216,20 @@ async def handle_resource_selection(call, result):
                             await sendMessage(call, download_log, send=True, chat_id=moviepilot.download_log_chatid)
                         except Exception as e:
                             LOGGER.error(f"[MoviePilot] 发送下载日志通知到{moviepilot.download_log_chatid}失败: {str(e)}")
-                    await editMessage(msg, f"🎉 已成功添加到下载队列\n🔖下载ID：`{download_id}`", buttons=re_download_center_ikb, parse_mode=enums.ParseMode.MARKDOWN)
+                    await editMessage(msg, f"已成功添加到下载队列\n下载ID：`{download_id}`", buttons=re_download_center_ikb, parse_mode=enums.ParseMode.MARKDOWN)
                     return
                 else:
                     LOGGER.error(f"【下载任务】：{call.from_user.id} 添加下载任务失败!")
-                    await editMessage(msg, f"❌ 添加下载任务失败!", buttons=re_download_center_ikb)
+                    await editMessage(msg, f"添加下载任务失败!", buttons=re_download_center_ikb)
                     return
             except IndexError:
-                await editMessage(msg, '❌ 输入错误，请重新输入，退出点 /cancel', buttons=re_download_center_ikb)
+                await editMessage(msg, '输入错误，请重新输入，退出点 /cancel', buttons=re_download_center_ikb)
                 continue
             except ValueError:
-                await editMessage(msg, '❌ 输入错误，请重新输入，退出点 /cancel', buttons=re_download_center_ikb)
+                await editMessage(msg, '输入错误，请重新输入，退出点 /cancel', buttons=re_download_center_ikb)
                 continue
             except:
-                await editMessage(msg, '❌ 呜呜呜，出错了', buttons=re_download_center_ikb)
+                await editMessage(msg, '出错了', buttons=re_download_center_ikb)
                 return
 
 
@@ -239,12 +239,12 @@ user_data = {}
 @bot.on_callback_query(filters.regex('download_rate') & user_in_group_on_filter)
 async def call_rate(_, call):
     if not moviepilot.status:
-        return await callAnswer(call, '❌ 管理员未开启点播功能', True)
-    await callAnswer(call, '📈 查看点播下载任务')
+        return await callAnswer(call, '管理员未开启点播功能', True)
+    await callAnswer(call, '查看点播下载任务')
     request_record, has_prev, has_next = sql_get_request_record_by_tg(
         call.from_user.id)
     if request_record is None:
-        return await editMessage(call, '🤷‍♂️ 您还没有点播记录，快去点播吧', buttons=re_download_center_ikb)
+        return await editMessage(call, '您还没有点播记录', buttons=re_download_center_ikb)
     text = get_request_record_text(request_record)
     user_data[call.from_user.id] = {'request_record_page': 1}
     await editMessage(call, text, buttons=request_record_page_ikb(has_prev, has_next))
@@ -277,7 +277,7 @@ async def request_record_next(_, call):
 
 
 def get_download_text(download_tasks, request_record):
-    text = '📈 点播记录\n'
+    text = '点播记录\n'
     for index, item in enumerate(request_record, start=1):
         for download_task in download_tasks:
             if download_task['download_id'] == item.download_id:
@@ -287,35 +287,35 @@ def get_download_text(download_tasks, request_record):
                     progress_text = '未知'
                 else:
                     progress = round(progress, 1)
-                    left_progress = '🟩' * int(progress/10)
-                    right_progress = '⬜️' * (10 - int(progress // 10))
+                    left_progress = '=' * int(progress/10)
+                    right_progress = '-' * (10 - int(progress // 10))
                     progress_text = f"{left_progress}{right_progress} {progress}%"
                 text += f"「{index}」：{item.request_name} \n"
                 text += f"状态：{'正在下载' if download_task['state'] == 'downloading' else ''} {progress_text}\n"
                 text += f"剩余时间：{download_task['left_time']}\n"
                 break
         else:
-            left_progress = '🟩' * 10
+            left_progress = '=' * 10
             progress_text = f"{left_progress} 100%"
             text += f"「{index}」：{item.request_name} \n状态：已完成 {progress_text}\n"
     return text
 def get_request_record_text(request_record):
-    text = '📈 点播记录\n'
+    text = '点播记录\n'
     for index, item in enumerate(request_record, start=1):
         progress = item.progress
         progress_text = ''
         if item.transfer_state is not None:
             if item.transfer_state:
-                text += f"「{index}」：{item.request_name} \n状态：已入库 📽️\n"
+                text += f"「{index}」：{item.request_name} \n状态：已入库\n"
             else:
-                text += f"「{index}」：{item.request_name} \n状态：入库失败 🚫\n"
+                text += f"「{index}」：{item.request_name} \n状态：入库失败\n"
         else:
             if progress is None:
                 progress_text = '未知'
             else:
                 progress = round(progress, 1)
-                left_progress = '🟩' * int(progress/10)
-                right_progress = '⬜️' * (10 - int(progress // 10))
+                left_progress = '=' * int(progress/10)
+                right_progress = '-' * (10 - int(progress // 10))
                 progress_text = f"{left_progress}{right_progress} {progress}%"
             download_state_text = '正在排队'
             if item.download_state == 'downloading':
@@ -332,10 +332,10 @@ def get_request_record_text(request_record):
 async def handle_prev_page(_, call):
     user_data = user_search_data.get(call.from_user.id)
     if not user_data:
-        return await callAnswer(call, '❌ 搜索会话已过期，请重新搜索', True)
+        return await callAnswer(call, '搜索会话已过期，请重新搜索', True)
     
     new_page = user_data['current_page'] - 1
-    await callAnswer(call, f'📃 正在加载第 {new_page} 页')
+    await callAnswer(call, f'正在加载第 {new_page} 页')
     all_result = user_data['all_result']
     keyword = user_data['keyword']
     await search_site_resources(call, keyword, new_page, all_result)
@@ -344,10 +344,10 @@ async def handle_prev_page(_, call):
 async def handle_next_page(_, call):
     user_data = user_search_data.get(call.from_user.id)
     if not user_data:
-        return await callAnswer(call, '❌ 搜索会话已过期，请重新搜索', True)
+        return await callAnswer(call, '搜索会话已过期，请重新搜索', True)
     
     new_page = user_data['current_page'] + 1
-    await callAnswer(call, f'📃 正在加载第 {new_page} 页')
+    await callAnswer(call, f'正在加载第 {new_page} 页')
     all_result = user_data['all_result']
     keyword = user_data['keyword']
     await search_site_resources(call, keyword, new_page, all_result)
@@ -356,7 +356,7 @@ async def handle_next_page(_, call):
 async def handle_select_download(_, call):
     user_data = user_search_data.get(call.from_user.id)
     if not user_data:
-        return await callAnswer(call, '❌ 搜索会话已过期，请重新搜索', True)
+        return await callAnswer(call, '搜索会话已过期，请重新搜索', True)
     
-    await callAnswer(call, '💾 进入资源选择')
+    await callAnswer(call, '进入资源选择')
     await handle_resource_selection(call, user_data['all_result'])

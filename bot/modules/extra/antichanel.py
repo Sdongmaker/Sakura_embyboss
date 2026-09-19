@@ -1,5 +1,5 @@
 """
-antichannel - 恶趣味，因为我没有所以其他人也不行。阿门
+antichannel - 拦截非白名单频道身份消息，维护频道白名单
 
 Author:susu
 Date:2023/12/30
@@ -29,33 +29,33 @@ async def get_user_input(msg):
 async def un_fukk_pitao(_, msg):
     a, gm = await get_user_input(msg)
     if not a:
-        return await msg.reply('使用 /unban_channel 回复 或 /unban_channel + [id/用户名] 为皮套解禁')
-    await asyncio.gather(msg.chat.unban_member(a), msg.reply(f'🕶️ {gm} 解禁皮套 ——> {a}'))
-    LOGGER.info(f'【AntiChannel】- {gm} 解禁皮套 ——> {a} ')
+        return await msg.reply('使用 /unban_channel 回复 或 /unban_channel + [id/用户名] 为频道解禁')
+    await asyncio.gather(msg.chat.unban_member(a), msg.reply(f'{gm} 解封频道 ——> {a}'))
+    LOGGER.info(f'【AntiChannel】- {gm} 解封频道 ——> {a} ')
 
 
 @bot.on_message(filters.command('white_channel', prefixes) & admins_on_filter)
 async def allow_pitao(_, msg):
     chatid, gm = await get_user_input(msg)
     if not chatid:
-        return await msg.reply('使用 /white_channel 回复 或 /white_channel + [id/用户名] 加入皮套人白名单')
+        return await msg.reply('使用 /white_channel 回复 或 /white_channel + [id/用户名] 加入频道白名单')
     if chatid not in w_anti_channel_ids:
         w_anti_channel_ids.append(chatid)
         save_config()
-    await asyncio.gather(msg.reply(f'🎁 {gm} 已为 {chatid} 添加皮套人白名单'), msg.chat.unban_member(chatid))
-    LOGGER.info(f'【AntiChannel】- {gm} 豁免皮套 ——> {chatid}')
+    await asyncio.gather(msg.reply(f'{gm} 已为 {chatid} 添加频道白名单'), msg.chat.unban_member(chatid))
+    LOGGER.info(f'【AntiChannel】- {gm} 豁免频道 ——> {chatid}')
 
 
 @bot.on_message(filters.command('rev_white_channel', prefixes) & admins_on_filter)
 async def remove_pitao(_, msg):
     a, gm = await get_user_input(msg)
     if not a:
-        return await msg.reply('使用 /rev_white_channel 回复 或 /rev_white_channel + [id/用户名] 移除皮套人白名单')
+        return await msg.reply('使用 /rev_white_channel 回复 或 /rev_white_channel + [id/用户名] 移除频道白名单')
     if a in w_anti_channel_ids:
         w_anti_channel_ids.remove(a)
         save_config()
-    await asyncio.gather(msg.reply(f'🕶️ {gm} 已为 {a} 移除皮套人白名单并封禁'), msg.chat.ban_member(a))
-    LOGGER.info(f'【AntiChannel】- {gm} 封禁皮套 ——> {a}')
+    await asyncio.gather(msg.reply(f'{gm} 已为 {a} 移除频道白名单并封禁'), msg.chat.ban_member(a))
+    LOGGER.info(f'【AntiChannel】- {gm} 封禁频道 ——> {a}')
 
 
 custom_message_filter = filters.create(
@@ -67,11 +67,11 @@ custom_chat_filter = filters.create(
 
 @bot.on_message(custom_message_filter & custom_chat_filter & filters.group)
 async def fuxx_pitao(_, msg):
-    # 如果开启了狙杀皮套人功能
+    # 如果开启了频道消息过滤功能
     # if config.fuxx_pitao:
     try:
         await asyncio.gather(msg.delete(),
-                             msg.reply(f'🎯 自动狙杀皮套人！{msg.sender_chat.title} - `{msg.sender_chat.id}`'))
+                             msg.reply(f'已自动封禁频道 {msg.sender_chat.title} - `{msg.sender_chat.id}`'))
         await msg.chat.ban_member(msg.sender_chat.id)
         LOGGER.info(
             f'【AntiChannel】- {msg.sender_chat.title} - {msg.sender_chat.id} 被封禁')

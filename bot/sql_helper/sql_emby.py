@@ -12,9 +12,7 @@ from bot import LOGGER
 
 
 class Emby(Base):
-    """
-    emby表，tg主键，默认值lv，us
-    """
+    """TG identity and account lifecycle state."""
     __tablename__ = 'emby'
     tg = Column(BigInteger, primary_key=True, autoincrement=False)
     embyid = Column(String(255), nullable=True)
@@ -23,7 +21,6 @@ class Emby(Base):
     lv = Column(String(1), default='d')
     cr = Column(DateTime, nullable=True)
     ex = Column(DateTime, nullable=True)
-    us = Column(Integer, default=0)
     ch = Column(DateTime, nullable=True)
 
 class EmbyServerAccount(Base):

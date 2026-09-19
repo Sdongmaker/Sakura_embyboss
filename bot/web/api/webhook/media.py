@@ -44,7 +44,7 @@ async def check_and_notify_series_update(item_data: dict):
             
             if favorites:
                 message = (
-                    f"📺 您喜欢的剧集更新啦\n"
+                    f"您收藏的剧集已更新\n"
                     f"剧集：《{series_name}》\n"
                     f"季度：{season_name}\n"
                     f"更新：第{episode_number}集 "
@@ -95,7 +95,7 @@ async def check_and_notify_person_update(item_data: dict):
                     item_type = item_data.get("Type", "")
                     
                     message = (
-                        f"🎭 您喜欢的演员有新作品啦\n"
+                        f"您收藏的演员有新作品\n"
                         f"演员：{person_name}\n"
                         f"作品：《{item_name}》\n"
                         f"类型：{item_type}\n"

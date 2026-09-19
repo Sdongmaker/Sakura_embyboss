@@ -1,12 +1,12 @@
 import json
 import os
+import secrets
 from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
-# 嵌套式的数据设计，规范数据 config.json
+MAX_INT_VALUE = 2147483647
+MIN_INT_VALUE = -2147483648
 
-MAX_INT_VALUE = 2147483647  # 2^31 - 1
-MIN_INT_VALUE = -2147483648  # -2^31
 
 class ExDate(BaseModel):
     mon: int = 30
@@ -15,47 +15,15 @@ class ExDate(BaseModel):
     year: int = 365
     used: int = 0
     unused: int = -1
-    code: str = 'code'
-    link: str = 'link'
-
-
-# class UserBuy(BaseModel):
-#     stat: StrictBool
-#
-#     # 转换 字符串为布尔
-#     @field_validator('stat', mode='before')
-#     def convert_to_bool(cls, v):
-#         if isinstance(v, str):
-#             return v.lower() == 'y'
-#         return v
-#
-#     text: bool
-#     button: List[str]
+    code: str = "code"
+    link: str = "link"
 
 
 class Open(BaseModel):
-    stat: bool
-    open_us: int = 30
-    all_user: int
-    register_worker_count: int = 5
-    register_queue_limit: int = 100
-    timing: int = 0
-    tem: Optional[int] = 0
-    # allow_code: StrictBool
-    # @field_validator('allow_code', mode='before')
-    # def convert_to_bool(cls, v):
-    #     if isinstance(v, str):
-    #         return v.lower() == 'y'
-    #     return v
-
-    exchange: bool
-    use_whitelist_code: bool = False
-    leave_ban: bool
-
-    # 每次创建 Open 对象时被重置为 0
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.timing = 0
+    """Settings retained for renewal, whitelist and moderation flows."""
+    exchange: bool = True
+    use_whitelist_code: bool = True
+    leave_ban: bool = True
 
 
 class Ranks(BaseModel):
@@ -70,7 +38,6 @@ class Schedall(BaseModel):
     weekplayrank: bool = True
     check_ex: bool = True
     low_activity: bool = False
-    partition_check: bool = True
     day_ranks_message_id: int = 0
     week_ranks_message_id: int = 0
     restart_chat_id: int = 0
@@ -81,14 +48,14 @@ class Schedall(BaseModel):
         super().__init__(**data)
         if self.day_ranks_message_id == 0 or self.week_ranks_message_id == 0:
             if os.path.exists("log/rank.json"):
-                with open("log/rank.json", "r") as f:
-                    i = json.load(f)
-                    self.day_ranks_message_id = i.get("day_ranks_message_id", 0)
-                    self.week_ranks_message_id = i.get("week_ranks_message_id", 0)
+                with open("log/rank.json", "r", encoding="utf-8") as f:
+                    values = json.load(f)
+                    self.day_ranks_message_id = values.get("day_ranks_message_id", 0)
+                    self.week_ranks_message_id = values.get("week_ranks_message_id", 0)
 
 
 class Proxy(BaseModel):
-    scheme: Optional[str] = ""  # "socks4", "socks5" and "http" are supported
+    scheme: Optional[str] = ""
     hostname: Optional[str] = ""
     port: Optional[int] = None
     username: Optional[str] = ""
@@ -104,15 +71,16 @@ class MP(BaseModel):
     download_log_chatid: Optional[int] = None
     lv: Optional[str] = "b"
 
+
 class AutoUpdate(BaseModel):
     status: bool = True
-    git_repo: Optional[str] = "berry8838/Sakura_embyboss"  # github仓库名/魔改的请填自己的仓库
-    commit_sha: Optional[str] = None  # 最近一次commit
-    up_description: Optional[str] = None  # 更新描述
+    git_repo: Optional[str] = "berry8838/Sakura_embyboss"
+    commit_sha: Optional[str] = None
+    up_description: Optional[str] = None
 
 
 class API(BaseModel):
-    status: bool = False  # 默认关闭
+    status: bool = False
     http_url: Optional[str] = "0.0.0.0"
     http_port: Optional[int] = 8838
     allow_origins: Optional[List[Union[str, int]]] = None
@@ -121,15 +89,27 @@ class API(BaseModel):
         super().__init__(**data)
         if self.allow_origins is None:
             self.allow_origins = ["*"]
-            # 如果未设置，默认为 ["*"]，为了安全可以设置成本机ip&反代的域名，列表可包含多个
+
+
 class ServerCfg(BaseModel):
-    """单台 Emby 服务器配置，servers[0] 为主服"""
-    name: str  # 服务器标识，需在 servers 中唯一
+    """单台 Emby 服务器配置，servers[0] 为主服。"""
+    name: str
     url: str
     api: str
-    line: Optional[str] = ""  # 展示给用户的访问线路
-    lvs: Optional[List[str]] = None  # 允许开通的等级，None/空表示不限
-    block_libs: Optional[List[str]] = None  # 该服需屏蔽的媒体库，None 表示用全局 emby_block + extra_emby_libs
+    line: Optional[str] = ""
+    lvs: Optional[List[str]] = None
+
+
+class Shop(BaseModel):
+    """dujiao-next upstream credentials and public connection settings."""
+    enabled: bool = True
+    listen_host: str = "127.0.0.1"
+    listen_port: int = 8838
+    api_key: str = Field(default_factory=lambda: secrets.token_urlsafe(24))
+    api_secret: str = Field(default_factory=lambda: secrets.token_urlsafe(48))
+    site_name: str = "Sakura Emby"
+    url: str = ""
+
 
 class Config(BaseModel):
     bot_name: str
@@ -141,13 +121,11 @@ class Config(BaseModel):
     main_group: str
     chanel: str
     bot_photo: str
-    open: Open
-    admins: Optional[List[int]] = []
+    open: Open = Field(default_factory=Open)
+    admins: List[int] = Field(default_factory=list)
     emby_api: str
     emby_url: str
-    emby_block: Optional[List[str]] = []
     emby_line: str
-    extra_emby_libs: Optional[List[str]] = []
     db_host: str
     db_user: str
     db_pwd: str
@@ -155,53 +133,34 @@ class Config(BaseModel):
     db_port: int = 3306
     tz_ad: Optional[str] = None
     tz_api: Optional[str] = None
-    tz_id: Optional[List[Union[int, str]]] = []  # int for Nezha, str (UUID) for Komari
-    tz_version: Optional[str] = "v0"  # "v0" for Nezha V0, "v1" for Nezha V1, "komari" for Komari
-    tz_username: Optional[str] = None  # V1 API only
-    tz_password: Optional[str] = None  # V1 API only
-    ranks: Ranks
-    schedall: Schedall
+    tz_id: List[Union[int, str]] = Field(default_factory=list)
+    tz_version: Optional[str] = "v0"
+    tz_username: Optional[str] = None
+    tz_password: Optional[str] = None
+    ranks: Ranks = Field(default_factory=Ranks)
+    schedall: Schedall = Field(default_factory=Schedall)
     db_is_docker: bool = False
     db_docker_name: str = "mysql"
     db_backup_dir: str = "./db_backup"
     db_backup_maxcount: int = 7
-    # another_line: Optional[List[str]] = []
-    # 如果使用的是 Python 3.10+ ，|运算符能用
-    # w_anti_channel_ids: Optional[List[str | int]] = []
-    w_anti_channel_ids: Optional[List[Union[str, int]]] = []
-    proxy: Optional[Proxy] = Proxy()
-    # kk指令中赠送资格的天数
-    kk_gift_days: int = 30
-    # 是否狙杀皮套人
+    w_anti_channel_ids: List[Union[str, int]] = Field(default_factory=list)
+    proxy: Optional[Proxy] = Field(default_factory=Proxy)
     fuxx_pitao: bool = True
-    # 活跃检测天数，默认21天
     activity_check_days: int = 21
-    # 封存账号天数，默认5天
     freeze_days: int = 5
-    # 白名单用户专属的emby线路
     emby_whitelist_line: Optional[str] = None
-    # 客户端过滤总开关
     client_filter_enabled: bool = False
-    # 被拦截的user-agent模式列表
     blocked_clients: Optional[List[str]] = None
-    # 客户端过滤模式：blacklist=命中黑名单拦截，whitelist=未命中白名单拦截
     client_filter_mode: str = "blacklist"
-    # 被允许的user-agent模式列表，仅client_filter_mode为whitelist时生效
     allowed_clients: Optional[List[str]] = None
-    # 是否在检测到可疑客户端时终止会话
     client_filter_terminate_session: bool = True
-    # 是否在检测到可疑客户端时封禁用户
     client_filter_block_user: bool = False
-    # 是否在检测到线路权限违规时终止会话
     line_filter_terminate_session: bool = True
-    # 是否在检测到线路权限违规时封禁用户
     line_filter_block_user: bool = False
-    # 分区名 -> 库名列表
-    partition_libs: Dict[str, List[str]] = Field(default_factory=dict)
     moviepilot: MP = Field(default_factory=MP)
     auto_update: AutoUpdate = Field(default_factory=AutoUpdate)
     api: API = Field(default_factory=API)
-    # 多台 Emby 服务器，第一台为主服；不配置时自动由 emby_url/emby_api/emby_line 合成单服
+    shop: Shop = Field(default_factory=Shop)
     servers: Optional[List[ServerCfg]] = None
 
     def __init__(self, **data):
@@ -216,19 +175,8 @@ class Config(BaseModel):
     @classmethod
     def load_config(cls):
         with open("config.json", "r", encoding="utf-8") as f:
-            config = json.load(f)
-            return cls(**config)
+            return cls(**json.load(f))
 
     def save_config(self):
         with open("config.json", "w", encoding="utf-8") as f:
             json.dump(self.model_dump(), f, indent=4, ensure_ascii=False)
-
-
-class Yulv(BaseModel):
-    wh_msg: List[str]
-
-    @classmethod
-    def load_yulv(cls):
-        with open("bot/func_helper/yvlu.json", "r", encoding="utf-8") as f:
-            yulv = json.load(f)
-            return cls(**yulv)

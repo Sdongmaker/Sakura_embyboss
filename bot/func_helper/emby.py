@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Dict, Any, List, Union
 from contextlib import asynccontextmanager
 
-from bot import emby_url, emby_api, emby_block, extra_emby_libs, LOGGER, config
+from bot import LOGGER, config
 from bot.schemas import ServerCfg
 from bot.sql_helper.sql_emby import (
     sql_add_server_account,
@@ -23,19 +23,9 @@ from bot.sql_helper.sql_emby import (
 from bot.func_helper.utils import pwd_create, convert_runtime, cache, Singleton
 
 
-def create_policy(admin=False, disable=False, limit: int = 2, block: list = None):
-    """
-    创建用户策略
-    :param admin: bool 是否开启管理员
-    :param disable: bool 是否禁用
-    :param limit: int 同时播放流的默认值，修改2 -> 3 any都可以
-    :param block: list 默认将 播放列表 屏蔽
-    :return: policy 用户策略
-    """
-    if block is None:
-        block = ['播放列表'] + extra_emby_libs
-    
-    policy = {
+def create_policy(admin=False, disable=False, limit: int = 2):
+    """Create the standard user policy with access to every media library."""
+    return {
         "IsAdministrator": admin,
         "IsHidden": True,
         "IsHiddenRemotely": True,
@@ -55,12 +45,13 @@ def create_policy(admin=False, disable=False, limit: int = 2, block: list = None
         "EnableSubtitleManagement": False,
         "EnableSyncTranscoding": False,
         "EnableMediaConversion": False,
-        "EnableAllDevices": True, 
+        "EnableAllDevices": True,
+        "EnableAllFolders": True,
+        "EnabledFolders": [],
+        "BlockedMediaFolders": [],
         "SimultaneousStreamLimit": limit,
-        "BlockedMediaFolders": block,
-        "AllowCameraUpload": False  # 新版api 控制开关相机上传
+        "AllowCameraUpload": False,
     }
-    return policy
 
 
 def pwd_policy(embyid: str, stats: bool = False, new: str = None) -> Dict[str, Any]:
@@ -113,8 +104,6 @@ class Embyservice(metaclass=Singleton):
         self.url = url.rstrip('/')
         self.api_key = api_key
         self.name = name or "main"
-        # 该服需要屏蔽的媒体库，默认与主服一致
-        self.block_libs = emby_block + extra_emby_libs
         self.max_retries = max_retries
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         
@@ -271,29 +260,14 @@ class Embyservice(metaclass=Singleton):
                 LOGGER.error(f"设置策略失败: {result.error}")
                 return False
             
-            # 4. 隐藏 emby_block 和 extra_emby_libs 媒体库
-            try:
-                # 使用封装的隐藏方法，屏蔽库按服务器配置取
-                block_libs = self.block_libs
-                result = await self.hide_folders_by_names(user_id, block_libs)
-                if not result:
-                    LOGGER.warning(f"设置媒体库权限失败: {user_id}，但用户已创建成功")
-            except Exception as e:
-                # 如果设置媒体库权限失败，记录错误但不影响用户创建
-                LOGGER.error(f"设置媒体库权限异常: {name} (ID: {user_id}) - {str(e)}")
-            
             LOGGER.info(f"成功创建用户: {name} (ID: {user_id})")
             return user_id, password, expiry_date
-            
         except Exception as e:
             LOGGER.error(f"创建用户异常: {name} - {str(e)}")
             return False
-
     async def emby_del(self, emby_id: str) -> bool:
         """
-        删除 Emby 账户
-        :param user_id: 用户ID
-        :return: 是否成功（账户本就不存在时同样视为成功，便于重试幂等）
+        Delete an Emby account; a missing account is already successful.
         """
         try:
             LOGGER.info(f"开始删除用户: {emby_id}")
@@ -364,252 +338,6 @@ class Embyservice(metaclass=Singleton):
             LOGGER.error(f"重置密码异常: {emby_id} - {str(e)}")
             return False
 
-    async def emby_block(self, emby_id: str, stats: int = 0, block: list = None) -> bool:
-        """
-        设置用户媒体库访问权限
-        :param emby_id: 用户ID
-        :param stats: 0-阻止访问，1-允许访问
-        :param block: 要阻止的媒体库列表
-        :return: 是否成功
-        """
-        try:
-            if block is None:
-                block = emby_block
-                
-            if stats == 0:
-                policy = create_policy(False, False, block=block)
-            else:
-                policy = create_policy(False, False)
-                
-            result = await self._request('POST', f'/emby/Users/{emby_id}/Policy', json=policy)
-            if result.success:
-                LOGGER.info(f"成功设置用户权限: {emby_id}")
-                return True
-            else:
-                LOGGER.error(f"设置用户权限失败: {emby_id} - {result.error}")
-                return False
-                
-        except Exception as e:
-            LOGGER.error(f"设置用户权限异常: {emby_id} - {str(e)}")
-            return False
-
-    async def get_emby_libs(self) -> Optional[Dict[str, str]]:
-        """
-        获取所有媒体库
-        :return: 媒体库字典 {guid: name}
-        """
-        try:
-            result = await self._request('GET', f'/emby/Library/VirtualFolders?api_key={self.api_key}')
-            if result.success and result.data:
-                # {guid: lib_name, ...}
-                libs = {lib['Guid']: lib['Name'] for lib in result.data}
-                LOGGER.debug(f"获取媒体库成功: {libs}")
-                return libs
-            else:
-                LOGGER.error(f"获取媒体库失败: {result.error}")
-                return None
-        except Exception as e:
-            LOGGER.error(f"获取媒体库异常: {str(e)}")
-            return None
-
-    async def get_folder_ids_by_names(self, folder_names: List[str]) -> List[str]:
-        """
-        根据媒体库名称获取对应的ID列表
-        :param folder_names: 媒体库名称列表
-        :return: 媒体库ID列表
-        """
-        try:
-            result = await self._request('GET', f'/emby/Library/VirtualFolders?api_key={self.api_key}')
-            if result.success and result.data:
-                folder_ids = []
-                for lib in result.data:
-                    if lib.get('Name') in folder_names:
-                        if lib.get('Guid') is not None:
-                            folder_ids.append(lib.get('Guid'))
-                LOGGER.debug(f"获取文件夹ID成功: {folder_names} -> {folder_ids}")
-                return folder_ids
-            else:
-                LOGGER.error(f"获取文件夹ID失败: {result.error}")
-                return []
-        except Exception as e:
-            LOGGER.error(f"获取文件夹ID异常: {str(e)}")
-            return []
-
-    async def update_user_enabled_folder(self, emby_id: str, enabled_folder_ids: List[str] = None, blocked_media_folders: List[str] = None, 
-                                enable_all_folders: bool = True) -> bool:
-        """
-        更新用户策略 - 新版本API方法
-        :param emby_id: 用户ID
-        :param enabled_folder_ids: 启用的文件夹ID列表
-        :param enable_all_folders: 是否启用所有文件夹
-        :return: 是否成功
-        """
-        try:
-            # 首先获取当前用户策略
-            user_result = await self._request('GET', f'/emby/Users/{emby_id}?api_key={self.api_key}')
-            if not user_result.success:
-                LOGGER.error(f"获取用户信息失败: {emby_id} - {user_result.error}")
-                return False
-            
-            current_policy = user_result.data.get('Policy', {})
-            
-            # 更新策略中的文件夹访问设置
-            updated_policy = current_policy.copy()
-            updated_policy['EnableAllFolders'] = enable_all_folders
-            if blocked_media_folders is not None:
-                updated_policy['BlockedMediaFolders'] = blocked_media_folders
-            
-            if enabled_folder_ids is not None:
-                updated_policy['EnabledFolders'] = enabled_folder_ids
-            
-            # 发送更新请求
-            result = await self._request('POST', f'/emby/Users/{emby_id}/Policy', json=updated_policy)
-            if result.success:
-                LOGGER.info(f"成功更新用户策略: {emby_id} - EnableAllFolders: {enable_all_folders} - EnabledFolders: {enabled_folder_ids}")
-                return True
-            else:
-                LOGGER.error(f"更新用户策略失败: {emby_id} - {result.error}")
-                return False
-                
-        except Exception as e:
-            LOGGER.error(f"更新用户策略异常: {emby_id} - {str(e)}")
-            return False
-
-    async def get_current_enabled_folder_ids(self, emby_id: str) -> Tuple[List[str], bool, List[str]]:
-        """
-        获取当前启用的文件夹ID列表（处理 EnableAllFolders 的情况）
-        :param emby_id: 用户ID
-        :return: (启用的文件夹ID列表, 是否启用所有文件夹, 阻止的媒体库名称列表)
-        """
-        try:
-            success, rep = await self.user(emby_id=emby_id)
-            if not success:
-                LOGGER.error(f"获取用户信息失败: {emby_id}")
-                return [], False, []
-            
-            policy = rep.get("Policy", {})
-            enable_all_folders = policy.get("EnableAllFolders", False)
-            blocked_media_folders = policy.get("BlockedMediaFolders", [])
-            
-            if enable_all_folders is True:
-                # 如果启用所有文件夹，需要获取所有媒体库的文件夹ID
-                all_libs = await self.get_emby_libs()
-                all_folder_ids = list(all_libs.keys()) if all_libs else []
-                return all_folder_ids, True, blocked_media_folders
-            else:
-                current_enabled_folders = policy.get("EnabledFolders", [])
-                return current_enabled_folders, False, blocked_media_folders
-                
-        except Exception as e:
-            LOGGER.error(f"获取当前启用文件夹ID异常: {emby_id} - {str(e)}")
-            return [], False, []
-
-    async def hide_folders_by_names(self, emby_id: str, folder_names: List[str]) -> bool:
-        """
-        根据媒体库名称隐藏指定的媒体库
-        :param emby_id: 用户ID
-        :param folder_names: 要隐藏的媒体库名称列表
-        :return: 是否成功
-        """
-        try:
-            # 获取当前启用的文件夹ID列表
-            current_enabled_folders, enable_all_folders, blocked_media_folders = await self.get_current_enabled_folder_ids(emby_id)
-            
-            # 获取要隐藏的媒体库对应的文件夹ID
-            hide_folder_ids = await self.get_folder_ids_by_names(folder_names)
-            
-            if not hide_folder_ids:
-                LOGGER.warning(f"未找到要隐藏的媒体库: {folder_names}")
-                return True  # 如果找不到，认为操作成功（可能已经隐藏了）
-            
-            # 从启用列表中移除要隐藏的文件夹ID
-            new_enabled_folders = [folder_id for folder_id in current_enabled_folders 
-                                  if folder_id not in hide_folder_ids]
-            # 将媒体库名称添加到阻止列表中（去重）
-            new_blocked_folders = list(set(blocked_media_folders + folder_names)) if blocked_media_folders else folder_names
-            # 更新用户策略
-            return await self.update_user_enabled_folder(
-                emby_id=emby_id,
-                enabled_folder_ids=new_enabled_folders,
-                blocked_media_folders=new_blocked_folders,
-                enable_all_folders=False
-            )
-            
-        except Exception as e:
-            LOGGER.error(f"隐藏媒体库异常: {emby_id} - {str(e)}")
-            return False
-
-    async def show_folders_by_names(self, emby_id: str, folder_names: List[str]) -> bool:
-        """
-        根据媒体库名称显示指定的媒体库
-        :param emby_id: 用户ID
-        :param folder_names: 要显示的媒体库名称列表
-        :return: 是否成功
-        """
-        try:
-            # 获取当前启用的文件夹ID列表
-            current_enabled_folders, enable_all_folders, blocked_media_folders = await self.get_current_enabled_folder_ids(emby_id)
-            
-            # 如果已经启用所有文件夹，则不需要修改
-            if enable_all_folders is True:
-                return await self.update_user_enabled_folder(
-                    emby_id=emby_id,
-                    blocked_media_folders=[],
-                    enable_all_folders=True,
-                )
-            
-            # 获取要显示的媒体库对应的文件夹ID
-            show_folder_ids = await self.get_folder_ids_by_names(folder_names)
-            
-            if not show_folder_ids:
-                LOGGER.warning(f"未找到要显示的媒体库: {folder_names}")
-                return True  # 如果找不到，认为操作成功
-            
-            # 将文件夹ID添加到启用列表中（去重）
-            new_enabled_folders = list(set(current_enabled_folders + show_folder_ids))
-            new_blocked_folders = [name for name in blocked_media_folders if name not in folder_names] if blocked_media_folders else []
-            
-            # 更新用户策略
-            return await self.update_user_enabled_folder(
-                emby_id=emby_id,
-                enabled_folder_ids=new_enabled_folders,
-                blocked_media_folders=new_blocked_folders,
-                enable_all_folders=False
-            )
-            
-        except Exception as e:
-            LOGGER.error(f"显示媒体库异常: {emby_id} - {str(e)}")
-            return False
-
-    async def enable_all_folders_for_user(self, emby_id: str) -> bool:
-        """
-        启用所有媒体库
-        :param emby_id: 用户ID
-        :return: 是否成功
-        """
-        all_libs = await self.get_emby_libs()
-        all_lib_guids = list(all_libs.keys()) if all_libs else []
-        return await self.update_user_enabled_folder(
-            emby_id=emby_id,
-            enable_all_folders=True,
-            enabled_folder_ids=all_lib_guids,
-            blocked_media_folders=[]
-        )
-
-    async def disable_all_folders_for_user(self, emby_id: str) -> bool:
-        """
-        禁用所有媒体库（关闭所有媒体库访问）
-        :param emby_id: 用户ID
-        :return: 是否成功
-        """
-        all_libs = await self.get_emby_libs()
-        all_lib_names = list(all_libs.values()) if all_libs else []
-        return await self.update_user_enabled_folder(
-            emby_id=emby_id,
-            enabled_folder_ids=[],
-            blocked_media_folders=all_lib_names,
-            enable_all_folders=False
-        )
 
     @cache.memoize(ttl=120)
     async def get_current_playing_count(self) -> int:
@@ -648,7 +376,7 @@ class Embyservice(metaclass=Singleton):
             
             # 发送消息给客户端
             message_data = {
-                "Text": f"🚫 会话已被终止: {reason}",
+                "Text": f"会话已被终止: {reason}",
                 "Header": "安全警告",
                 "TimeoutMs": 10000
             }
@@ -667,36 +395,23 @@ class Embyservice(metaclass=Singleton):
             return False
 
     async def emby_change_policy(self, emby_id: str, admin: bool = False, disable: bool = False) -> bool:
-        """
-        修改用户策略
-        :param user_id: 用户ID
-        :param admin: 是否为管理员
-        :param disable: 是否禁用
-        :return: 是否成功
-        """
+        """Update administrator/disabled flags while preserving playback restrictions."""
         try:
             current_policy = {}
             user_result = await self._request('GET', f'/emby/Users/{emby_id}')
             if user_result.success:
                 current_policy = user_result.data.get("Policy", {}) if user_result.data else {}
-            else:
-                LOGGER.warning(f"获取用户当前策略失败，将使用默认策略更新: {emby_id} - {user_result.error}")
-
             policy = create_policy(admin=admin, disable=disable)
-            if current_policy:
-                policy.update({
-                    "EnableAllFolders": current_policy.get("EnableAllFolders", False),
-                    "EnabledFolders": current_policy.get("EnabledFolders", []),
-                    "BlockedMediaFolders": current_policy.get("BlockedMediaFolders", policy.get("BlockedMediaFolders", [])),
-                })
-
+            for key in ("SimultaneousStreamLimit", "EnableMediaPlayback", "EnableAudioPlaybackTranscoding",
+                        "EnableVideoPlaybackTranscoding", "EnablePlaybackRemuxing"):
+                if key in current_policy:
+                    policy[key] = current_policy[key]
             result = await self._request('POST', f'/emby/Users/{emby_id}/Policy', json=policy)
             if result.success:
                 LOGGER.info(f"成功修改用户策略: {emby_id}")
                 return True
-            else:
-                LOGGER.error(f"修改用户策略失败: {emby_id} - {result.error}")
-                return False
+            LOGGER.error(f"修改用户策略失败: {emby_id} - {result.error}")
+            return False
         except Exception as e:
             LOGGER.error(f"修改用户策略异常: {emby_id} - {str(e)}")
             return False
@@ -778,7 +493,7 @@ class Embyservice(metaclass=Singleton):
                 return True, result.data
             else:
                 LOGGER.error(f"获取用户列表失败: {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
+                return False, {'error': f"Emby 服务器连接失败: {result.error}"}
         except Exception as e:
             LOGGER.error(f"获取用户列表异常: {str(e)}")
             return False, {'error': str(e)}
@@ -796,7 +511,7 @@ class Embyservice(metaclass=Singleton):
                 return True, result.data
             else:
                 LOGGER.error(f"获取用户信息失败: {emby_id} - {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
+                return False, {'error': f"Emby 服务器连接失败: {result.error}"}
         except Exception as e:
             LOGGER.error(f"获取用户信息异常: {emby_id} - {str(e)}")
             return False, {'error': str(e)}
@@ -816,10 +531,10 @@ class Embyservice(metaclass=Singleton):
                         LOGGER.debug(f"找到用户: {emby_name}")
                         return True, item
                 LOGGER.warning(f"未找到用户: {emby_name}")
-                return False, {'error': "🤕用户不存在"}
+                return False, {'error': "用户不存在"}
             else:
                 LOGGER.error(f"查询用户失败: {emby_name} - {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
+                return False, {'error': f"Emby 服务器连接失败: {result.error}"}
         except Exception as e:
             LOGGER.error(f"查询用户异常: {emby_name} - {str(e)}")
             return False, {'error': str(e)}
@@ -905,36 +620,13 @@ class Embyservice(metaclass=Singleton):
                     return True, people
                 else:
                     LOGGER.warning(f"项目无演员信息: {item_id}")
-                    return False, {'error': "🤕Emby 服务器返回数据为空!"}
+                    return False, {'error': "Emby 服务器返回数据为空!"}
             else:
                 LOGGER.error(f"获取演员信息失败: {item_id} - {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
+                return False, {'error': f"Emby 服务器连接失败: {result.error}"}
         except Exception as e:
             LOGGER.error(f"获取演员信息异常: {item_id} - {str(e)}")
             return False, {'error': str(e)}
-
-    async def primary(self, item_id: str, width: int = 200, height: int = 300, quality: int = 90) -> Tuple[bool, Union[bytes, Dict[str, str]]]:
-        """
-        获取主要图片
-        :param item_id: 项目ID
-        :param width: 宽度
-        :param height: 高度
-        :param quality: 质量
-        :return: (是否成功, 图片数据或错误信息)
-        """
-        try:
-            url = f'/emby/Items/{item_id}/Images/Primary?maxHeight={height}&maxWidth={width}&quality={quality}'
-            result = await self._request('GET', url)
-            if result.success:
-                LOGGER.debug(f"获取主要图片成功: {item_id}")
-                return True, result.data
-            else:
-                LOGGER.error(f"获取主要图片失败: {item_id} - {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
-        except Exception as e:
-            LOGGER.error(f"获取主要图片异常: {item_id} - {str(e)}")
-            return False, {'error': str(e)}
-
     async def backdrop(self, item_id: str, width: int = 300, quality: int = 90) -> Tuple[bool, Union[bytes, Dict[str, str]]]:
         """
         获取背景图片
@@ -951,7 +643,7 @@ class Embyservice(metaclass=Singleton):
                 return True, result.data
             else:
                 LOGGER.error(f"获取背景图片失败: {item_id} - {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
+                return False, {'error': f"Emby 服务器连接失败: {result.error}"}
         except Exception as e:
             LOGGER.error(f"获取背景图片异常: {item_id} - {str(e)}")
             return False, {'error': str(e)}
@@ -970,7 +662,7 @@ class Embyservice(metaclass=Singleton):
                 return True, result.data
             else:
                 LOGGER.error(f"获取项目信息失败: {emby_id} -> {item_id} - {result.error}")
-                return False, {'error': f"🤕Emby 服务器连接失败: {result.error}"}
+                return False, {'error': f"Emby 服务器连接失败: {result.error}"}
         except Exception as e:
             LOGGER.error(f"获取项目信息异常: {emby_id} -> {item_id} - {str(e)}")
             return False, {'error': str(e)}
@@ -1033,7 +725,7 @@ class Embyservice(metaclass=Singleton):
                 return True, ret.get("results", [])
             else:
                 LOGGER.error(f"获取播放报告失败: {result.error}")
-                return False, f"🤕Emby 服务器连接失败: {result.error}"
+                return False, f"Emby 服务器连接失败: {result.error}"
                 
         except Exception as e:
             LOGGER.error(f"获取播放报告异常: {str(e)}")
@@ -1066,7 +758,7 @@ class Embyservice(metaclass=Singleton):
                 return True, ret.get("results", [])
             else:
                 LOGGER.error(f"获取用户设备信息失败: {emby_id} - {result.error}")
-                return False, f"🤕Emby 服务器连接失败: {result.error}"
+                return False, f"Emby 服务器连接失败: {result.error}"
                 
         except Exception as e:
             LOGGER.error(f"获取用户设备信息异常: {emby_id} - {str(e)}")
@@ -1150,7 +842,7 @@ class Embyservice(metaclass=Singleton):
                 return True, enriched_results
             else:
                 LOGGER.error(f"根据IP查询用户失败: {ip_address} - {result.error}")
-                return False, f"🤕Emby 服务器连接失败: {result.error}"
+                return False, f"Emby 服务器连接失败: {result.error}"
                 
         except Exception as e:
             LOGGER.error(f"根据IP查询用户异常: {ip_address} - {str(e)}")
@@ -1232,7 +924,7 @@ class Embyservice(metaclass=Singleton):
                 return True, enriched_results
             else:
                 LOGGER.error(f"根据设备名查询用户失败: {device_name} - {result.error}")
-                return False, f"🤕Emby 服务器连接失败: {result.error}"
+                return False, f"Emby 服务器连接失败: {result.error}"
                 
         except Exception as e:
             LOGGER.error(f"根据设备名查询用户异常: {device_name} - {str(e)}")
@@ -1314,7 +1006,7 @@ class Embyservice(metaclass=Singleton):
                 return True, enriched_results
             else:
                 LOGGER.error(f"根据客户端名查询用户失败: {client_name} - {result.error}")
-                return False, f"🤕Emby 服务器连接失败: {result.error}"
+                return False, f"Emby 服务器连接失败: {result.error}"
                 
         except Exception as e:
             LOGGER.error(f"根据客户端名查询用户异常: {client_name} - {str(e)}")
@@ -1389,18 +1081,18 @@ class Embyservice(metaclass=Singleton):
                         episode_count = result.get("EpisodeCount", 0)
                         music_count = result.get("SongCount", 0)
                         
-                        txt = f'🎬 电影数量：{movie_count}\n' \
-                              f'📽️ 剧集数量：{tv_count}\n' \
-                              f'🎵 音乐数量：{music_count}\n' \
-                              f'🎞️ 总集数：{episode_count}\n'
+                        txt = f'电影数量：{movie_count}\n' \
+                              f'剧集数量：{tv_count}\n' \
+                              f'音乐数量：{music_count}\n' \
+                              f'总集数：{episode_count}\n'
                         LOGGER.debug("获取媒体统计成功")
                         return txt
                     else:
                         LOGGER.error(f"获取媒体统计失败: HTTP {response.status}")
-                        return '🤕Emby 服务器返回数据为空!'
+                        return 'Emby 服务器返回数据为空!'
         except Exception as e:
             LOGGER.error(f"获取媒体统计异常: {str(e)}")
-            return '🤕Emby 服务器连接失败!'
+            return 'Emby 服务器连接失败!'
 
     async def get_movies(self, title: str, start: int = 0, limit: int = 5) -> List[Dict]:
         """
@@ -1505,8 +1197,6 @@ class Embyservice(metaclass=Singleton):
 emby_pool: Dict[str, Embyservice] = {}
 for _server in config.servers:
     _embyservice = Embyservice(_server.url, _server.api, name=_server.name)
-    if _server.block_libs is not None:
-        _embyservice.block_libs = list(_server.block_libs)
     emby_pool[_server.name] = _embyservice
 
 # 创建全局实例（主服）

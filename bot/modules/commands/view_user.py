@@ -10,7 +10,7 @@ import math
 
 @bot.on_callback_query(filters.regex('^whitelist$') & admins_on_filter)
 async def list_whitelist(_, call):
-    await callAnswer(call, '🔍 白名单用户列表')
+    await callAnswer(call, '白名单用户列表')
     page = 1
     whitelist_users = get_all_emby(Emby.lv == 'a')
     total_users = len(whitelist_users)
@@ -22,7 +22,7 @@ async def list_whitelist(_, call):
     await editMessage(call, text, buttons=keyboard)
 @bot.on_callback_query(filters.regex('^normaluser$') & admins_on_filter)
 async def list_normaluser(_, call):
-    await callAnswer(call, '🔍 普通用户列表')
+    await callAnswer(call, '普通用户列表')
     page = 1
     normal_users = get_all_emby(Emby.lv == 'b')
     total_users = len(normal_users)
@@ -36,7 +36,7 @@ async def list_normaluser(_, call):
 @bot.on_callback_query(filters.regex('^whitelist:') & admins_on_filter)
 async def whitelist_page(_, call):
     page = int(call.data.split(':')[1])
-    await callAnswer(call, f'🔍 打开第{page}页')
+    await callAnswer(call, f'打开第{page}页')
     whitelist_users = get_all_emby(Emby.lv == 'a')
     total_users = len(whitelist_users)
     total_pages = math.ceil(total_users / 20)
@@ -49,7 +49,7 @@ async def whitelist_page(_, call):
 @bot.on_callback_query(filters.regex('^normaluser:') & admins_on_filter)
 async def normaluser_page(_, call):
     page = int(call.data.split(':')[1])
-    await callAnswer(call, f'🔍 打开第{page}页')
+    await callAnswer(call, f'打开第{page}页')
     normal_users = get_all_emby(Emby.lv == 'b')
     total_users = len(normal_users)
     total_pages = math.ceil(total_users / 20)
@@ -82,10 +82,10 @@ async def user_devices(_, call):
     # 获取页码
     if call.data == 'user_devices':
         page = 1
-        await callAnswer(call, '🔍 用户设备列表')
+        await callAnswer(call, '用户设备列表')
     else:
         page = int(call.data.split(':')[1])
-        await callAnswer(call, f'🔍 打开第{page}页')
+        await callAnswer(call, f'打开第{page}页')
 
     page_size = 20
     # 计算offset
@@ -94,9 +94,9 @@ async def user_devices(_, call):
     # 获取用户设备信息
     success, result, has_prev, has_next = await emby.get_emby_user_devices(offset=offset, limit=page_size)
     if not success:
-        return await callAnswer(call, '🤕 Emby 服务器连接失败!')
+        return await callAnswer(call, 'Emby 服务器连接失败')
 
-    text = '**💠 用户设备列表**\n\n'
+    text = '**用户设备列表**\n\n'
     for name, device_count, ip_count in result:
         text += f'用户名: [{name}](https://t.me/{bot_name}?start=userip-{name}) | 设备: {device_count} | IP: {ip_count}\n'
     text += f"\n第 {page} 页"

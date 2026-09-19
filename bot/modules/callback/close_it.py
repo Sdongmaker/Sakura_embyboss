@@ -26,4 +26,7 @@ async def close_it(_, call):
         if judge_admins(call.from_user.id):
             await deleteMessage(call)
         else:
-            await callAnswer(call, '⚠️ 请不要以下犯上，ok？', True)
+            await callAnswer(call, '只有管理员可以删除该消息', True)
+@bot.on_callback_query(filters.regex('^copy_tg_id$'))
+async def copy_tg_id(_, call):
+    await call.answer(str(call.from_user.id), show_alert=True)

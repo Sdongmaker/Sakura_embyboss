@@ -2,491 +2,217 @@ from cacheout import Cache
 from pykeyboard import InlineKeyboard, InlineButton
 from pyrogram.types import InlineKeyboardMarkup
 from pyromod.helpers import ikb, array_chunk
-from bot import chanel, main_group, bot_name, extra_emby_libs, tz_id, tz_ad, tz_api, tz_version, tz_username, tz_password, _open, \
-    schedall, auto_update, fuxx_pitao, moviepilot, config, LOGGER
+from bot import chanel, main_group, bot_name, tz_id, tz_ad, tz_api, tz_version, tz_username, tz_password, _open, schedall, auto_update, fuxx_pitao, moviepilot, config, LOGGER
 from bot.func_helper import nezha_res
 from bot.func_helper.emby import emby
 from bot.func_helper.utils import members_info
 
 cache = Cache()
 
-"""start面板 ↓"""
-
-
 def judge_start_ikb(is_admin: bool, account: bool) -> InlineKeyboardMarkup:
-    """
-    start面板按钮
-    """
-    if not account:
-        d = []
-        d.append(['🎟️ 使用注册码', 'exchange'])
-        d.append(['👑 创建账户', 'create'])
-        d.append(['⭕ 换绑TG', 'changetg'])
-        d.append(['🔍 绑定TG', 'bindtg'])
-    else:
-        d = [['️👥 用户功能', 'members'], ['🌐 服务器', 'server']]
-        if schedall.check_ex:
-            d.append(['🎟️ 使用续期码', 'exchange'])
-        if schedall.partition_check and len(config.partition_libs) > 0:
-            d.append(['🎟️ 使用分区码', 'partitioncode'])
-        if _open.use_whitelist_code:
-            d.append(['🔑 使用白名单码', 'wl_exchange'])
-    lines = array_chunk(d, 2)
-    if is_admin: lines.append([['👮🏻‍♂️ admin', 'manage']])
-    keyword = ikb(lines)
-    return keyword
+    buttons = [['用户功能', 'members'], ['服务器', 'server']] if account else [['复制 TG ID', 'copy_tg_id']]
+    if getattr(config.shop, 'url', ''):
+        buttons.append(['去商城', config.shop.url, 'url'])
+    if account and schedall.check_ex:
+        buttons.append(['使用续期码', 'exchange'])
+    if account and _open.use_whitelist_code:
+        buttons.append(['使用白名单码', 'wl_exchange'])
+    if is_admin:
+        buttons.append(['管理面板', 'manage'])
+    return ikb(buttons)
 
-
-# un_group_answer
-group_f = ikb([[('点击我(●ˇ∀ˇ●)', f't.me/{bot_name}', 'url')]])
-# un in group
-judge_group_ikb = ikb([[('🌟 频道入口 ', f't.me/{chanel}', 'url'),
-                        ('💫 群组入口', f't.me/{main_group}', 'url')],
-                       [('❌ 关闭消息', 'closeit')]])
-
-"""members ↓"""
+group_f = ikb([[('点击我', f't.me/{bot_name}', 'url')]])
+judge_group_ikb = ikb([[('频道入口', f't.me/{chanel}', 'url'), ('群组入口', f't.me/{main_group}', 'url')], [('关闭消息', 'closeit')]])
 
 
 def members_ikb(is_admin: bool = False, account: bool = False) -> InlineKeyboardMarkup:
-    """
-    判断用户面板
-    """
-    if account:
-        normal = [[('🎟️ 兑换码', 'exchange'), ('🗑️ 删除账号', 'delme')],
-                    [('🎬 显示/隐藏', 'embyblock'), ('⭕ 重置密码', 'reset')],
-                    [('💖 我的收藏', 'my_favorites'),('💠 我的设备', 'my_devices')],
-                    ]
-        if moviepilot.status:
-            normal.append([('🍿 点播中心', 'download_center')])
-        normal.append([('♻️ 主界面', 'back_start')])
-        return ikb(normal)
-    else:
-        return judge_start_ikb(is_admin, account)
-        # return ikb(
-        #     [[('👑 创建账户', 'create')], [('⭕ 换绑TG', 'changetg'), ('🔍 绑定TG', 'bindtg')],
-        #      [('♻️ 主界面', 'back_start')]])
+    if not account:
+        return judge_start_ikb(is_admin, False)
+    buttons = [[('兑换码', 'exchange'), ('删除账号', 'delme')], [('重置密码', 'reset')], [('我的收藏', 'my_favorites'), ('我的设备', 'my_devices')]]
+    if moviepilot.status:
+        buttons.append([('点播中心', 'download_center')])
+    buttons.append([('主界面', 'back_start')])
+    return ikb(buttons)
 
+gm_ikb_content = ikb([[('创建续期/白名单码', 'cr_link'), ('兑换设置', 'set_renew')], [('用户列表', 'normaluser'), ('白名单列表', 'whitelist'), ('设备列表', 'user_devices')], [('商城配置', 'shop_panel'), ('主界面', 'back_start'), ('其他', 'back_config')]])
 
-back_start_ikb = ikb([[('💫 回到首页', 'back_start')]])
-back_members_ikb = ikb([[('💨 返回', 'members')]])
-back_manage_ikb = ikb([[('💨 返回', 'manage')]])
-re_create_ikb = ikb([[('🍥 重新输入', 'create'), ('💫 用户主页', 'members')]])
-re_changetg_ikb = ikb([[('✨ 换绑TG', 'changetg'), ('💫 用户主页', 'members')]])
-re_bindtg_ikb = ikb([[('✨ 绑定TG', 'bindtg'), ('💫 用户主页', 'members')]])
-re_delme_ikb = ikb([[('♻️ 重试', 'delme')], [('🔙 返回', 'members')]])
-re_reset_ikb = ikb([[('♻️ 重试', 'reset')], [('🔙 返回', 'members')]])
-re_exchange_b_ikb = ikb([[('♻️ 重试', 'exchange'), ('❌ 关闭', 'closeit')]])
-
+back_start_ikb = ikb([[('回到首页', 'back_start')]])
+back_members_ikb = ikb([[('返回', 'members')]])
+back_manage_ikb = ikb([[('返回', 'manage')]])
+re_changetg_ikb = ikb([[('换绑TG', 'changetg'), ('用户主页', 'members')]])
+re_bindtg_ikb = ikb([[('绑定TG', 'bindtg'), ('用户主页', 'members')]])
+re_delme_ikb = ikb([[('重试', 'delme')], [('返回', 'members')]])
+re_reset_ikb = ikb([[('重试', 'reset')], [('返回', 'members')]])
+re_exchange_b_ikb = ikb([[('重试', 'exchange'), ('关闭', 'closeit')]])
 
 def send_changetg_ikb(cr_id, rp_id):
-    """
-    :param cr_id: 当前操作id
-    :param rp_id: 替换id
-    :return:
-    """
-    return ikb([[('✅ 通过', f'changetg_{cr_id}_{rp_id}'), ('❎ 驳回', f'nochangetg_{cr_id}_{rp_id}')]])
-
+    return ikb([[('通过', f'changetg_{cr_id}_{rp_id}'), ('驳回', f'nochangetg_{cr_id}_{rp_id}')]])
 
 def del_me_ikb(embyid) -> InlineKeyboardMarkup:
-    return ikb([[('🎯 确定', f'delemby-{embyid}')], [('🔙 取消', 'members')]])
-
-
-def emby_block_ikb(embyid) -> InlineKeyboardMarkup:
-    return ikb(
-        [[("✔️️ - 显示", f"emby_unblock-{embyid}"), ("✖️ - 隐藏", f"emby_block-{embyid}")], [("🔙 返回", "members")]])
-
-
-user_emby_block_ikb = ikb([[('✅ 已隐藏', 'members')]])
-user_emby_unblock_ikb = ikb([[('❎ 已显示', 'members')]])
-
-"""server ↓"""
-
+    return ikb([[('确定', f'delemby-{embyid}')], [('取消', 'members')]])
 
 @cache.memoize(ttl=120)
 async def cr_page_server():
-    """
-    翻页服务器面板
-    :return:
-    """
-    sever = await nezha_res.sever_info(tz_ad, tz_api, tz_id, tz_version, tz_username, tz_password)
-    if not sever:
-        return ikb([[('🔙 - 用户', 'members'), ('❌ - 上一级', 'back_start')]]), None
-    d = []
-    for i in sever:
-        d.append([i['name'], f'server:{i["id"]}'])
-    lines = array_chunk(d, 3)
-    lines.append([['🔙 - 用户', 'members'], ['❌ - 上一级', 'back_start']])
-    # keyboard是键盘，a是sever
-    return ikb(lines), sever
+    servers = await nezha_res.sever_info(tz_ad, tz_api, tz_id, tz_version, tz_username, tz_password)
+    if not servers:
+        return ikb([[('用户', 'members'), ('上一级', 'back_start')]]), None
+    buttons = [[item['name'], f"server:{item['id']}"] for item in servers]
+    buttons.append([['用户', 'members'], ['上一级', 'back_start']])
+    return ikb(buttons), servers
 
+re_cr_link_ikb = ikb([[('继续创建', 'cr_link'), ('返回主页', 'manage')]])
+close_it_ikb = ikb([[('Close', 'closeit')]])
 
-"""admins ↓"""
+def ch_link_ikb(items: list) -> InlineKeyboardMarkup:
+    return ikb(array_chunk(items, 2) + [[('回到首页', 'manage')]])
 
-gm_ikb_content = ikb([[('⭕ 注册状态', 'open-menu'), ('🎟️ 创建兑换码', 'cr_link')],
-                      [('💊 查询注册', 'ch_link'), ('🏬 兑换设置', 'set_renew')],
-                      [('👥 用户列表', 'normaluser'), ('👑 白名单列表', 'whitelist'), ('💠 设备列表', 'user_devices')],
-                      [('🌏 定时', 'schedall'), ('🕹️ 主界面', 'back_start'), ('其他 🪟', 'back_config')]])
-
-
-def open_menu_ikb(openstats, timingstats) -> InlineKeyboardMarkup:
-    return ikb([[(f'{openstats} 自由注册', 'open_stat'), (f'{timingstats} 定时注册', 'open_timing')],
-                [('🤖注册账号天数', 'open_us'),('⭕ 注册限制', 'all_user_limit')], [('🌟 返回上一级', 'manage')]])
-
-
-back_free_ikb = ikb([[('🔙 返回上一级', 'open-menu')]])
-back_open_menu_ikb = ikb([[('🪪 重新定时', 'open_timing'), ('🔙 注册状态', 'open-menu')]])
-re_cr_link_ikb = ikb([[('♻️ 继续创建', 'cr_link'), ('🎗️ 返回主页', 'manage')]])
-close_it_ikb = ikb([[('❌ - Close', 'closeit')]])
-
-
-def ch_link_ikb(ls: list) -> InlineKeyboardMarkup:
-    lines = array_chunk(ls, 2)
-    lines.append([["💫 回到首页", "manage"]])
-    return ikb(lines)
-
-
-def date_ikb(i) -> InlineKeyboardMarkup:
-    return ikb([[('🌘 - 月', f'register_mon_{i}'), ('🌗 - 季', f'register_sea_{i}'),
-                 ('🌖 - 半年', f'register_half_{i}')],
-                [('🌕 - 年', f'register_year_{i}'), ('🌑 - 未用', f'register_unused_{i}'), ('🎟️ - 已用', f'register_used_{i}')],
-                [('🔙 - 返回', 'ch_link')]])
-
-# 翻页按钮
 async def cr_paginate(total_page: int, current_page: int, n) -> InlineKeyboardMarkup:
-    """
-    :param total_page: 总数
-    :param current_page: 目前
-    :param n: mode 可变项
-    :return:
-    """
     keyboard = InlineKeyboard()
     keyboard.paginate(total_page, current_page, 'pagination_keyboard:{number}' + f'_{n}')
-    next = InlineButton('⏭️ 后退+5', f'pagination_keyboard:{current_page + 5}_{n}')
-    previous = InlineButton('⏮️ 前进-5', f'pagination_keyboard:{current_page - 5}_{n}')
-    followUp = [InlineButton('❌ 关闭', f'closeit')]
+    follow_up = [InlineButton('关闭', 'closeit')]
     if total_page > 5:
         if current_page - 5 >= 1:
-            followUp.append(previous)
+            follow_up.insert(0, InlineButton('前进5页', f'pagination_keyboard:{current_page - 5}_{n}'))
         if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
+            follow_up.insert(0, InlineButton('后退5页', f'pagination_keyboard:{current_page + 5}_{n}'))
+    keyboard.row(*follow_up)
     return keyboard
-
 
 async def plays_list_button(total_page: int, current_page: int, days) -> InlineKeyboardMarkup:
-    """
-    :param total_page: 总页数
-    :param current_page: 当前页数
-    :param days: 请求获取多少天
-    :return:
-    """
     keyboard = InlineKeyboard()
     keyboard.paginate(total_page, current_page, 'uranks:{number}' + f'_{days}')
-    # 添加按钮,前进5, 后退5
-    next = InlineButton('⏭️ 后退+5', f'uranks:{current_page + 5}_{days}')
-    previous = InlineButton('⏮️ 前进-5', f'uranks:{current_page - 5}_{days}')
-    followUp = [InlineButton('❌ 关闭', f'closeit')]
+    follow_up = [InlineButton('关闭', 'closeit')]
     if total_page > 5:
         if current_page - 5 >= 1:
-            followUp.append(previous)
+            follow_up.insert(0, InlineButton('前进5页', f'uranks:{current_page - 5}_{days}'))
         if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
+            follow_up.insert(0, InlineButton('后退5页', f'uranks:{current_page + 5}_{days}'))
+    keyboard.row(*follow_up)
     return keyboard
-
 
 async def whitelist_page_ikb(total_page: int, current_page: int) -> InlineKeyboardMarkup:
-    keyboard = InlineKeyboard()
-    keyboard.paginate(total_page, current_page, 'whitelist:{number}')
-    next = InlineButton('⏭️ 后退+5', f'whitelist:{current_page + 5}')
-    previous = InlineButton('⏮️ 前进-5', f'whitelist:{current_page - 5}')
-    followUp = [InlineButton('🔙 Back', 'manage')]
-    if total_page > 5:
-        if current_page - 5 >= 1:
-            followUp.append(previous)
-        if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
-    return keyboard
+    keyboard = InlineKeyboard(); keyboard.paginate(total_page, current_page, 'whitelist:{number}'); keyboard.row(InlineButton('返回', 'manage')); return keyboard
+
 async def normaluser_page_ikb(total_page: int, current_page: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboard()
     keyboard.paginate(total_page, current_page, 'normaluser:{number}')
-    next = InlineButton('⏭️ 后退+5', f'normaluser:{current_page + 5}')
-    previous = InlineButton('⏮️ 前进-5', f'normaluser:{current_page - 5}')
-    followUp = [InlineButton('🔙 Back', 'manage')]
+    follow_up = [InlineButton('返回', 'manage')]
     if total_page > 5:
         if current_page - 5 >= 1:
-            followUp.append(previous)
+            follow_up.insert(0, InlineButton('前进5页', f'normaluser:{current_page - 5}'))
         if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
+            follow_up.insert(0, InlineButton('后退5页', f'normaluser:{current_page + 5}'))
+    keyboard.row(*follow_up)
     return keyboard
-def devices_page_ikb( has_prev: bool, has_next: bool, page: int) -> InlineKeyboardMarkup:
-    # 构建分页按钮
+
+def devices_page_ikb(has_prev: bool, has_next: bool, page: int) -> InlineKeyboardMarkup:
     buttons = []
     if has_prev or has_next:
-        nav_buttons = []
+        nav = []
         if has_prev:
-            nav_buttons.append(('⬅️', f'devices:{page-1}'))
-        nav_buttons.append((f'第 {page} 页', 'none'))
+            nav.append(('上一页', f'devices:{page - 1}'))
+        nav.append((f'第 {page} 页', 'none'))
         if has_next:
-            nav_buttons.append(('➡️', f'devices:{page+1}'))
-        buttons.append(nav_buttons)
-    # 添加返回按钮
-    buttons.append([('🔙 返回', 'manage')])
-    keyboard = ikb(buttons)
-    return keyboard
+            nav.append(('下一页', f'devices:{page + 1}'))
+        buttons.append(nav)
+    buttons.append([('返回', 'manage')])
+    return ikb(buttons)
+
 async def favorites_page_ikb(total_page: int, current_page: int) -> InlineKeyboardMarkup:
-    keyboard = InlineKeyboard()
-    keyboard.paginate(total_page, current_page, 'page_my_favorites:{number}')
-    next = InlineButton('⏭️ 后退+5', f'page_my_favorites:{current_page + 5}')
-    previous = InlineButton('⏮️ 前进-5', f'page_my_favorites:{current_page - 5}')
-    followUp = [InlineButton('🔙 Back', 'members')]
-    if total_page > 5:
-        if current_page - 5 >= 1:
-            followUp.append(previous)
-        if current_page + 5 < total_page:
-            followUp.append(next)
-    keyboard.row(*followUp)
-    return keyboard
+    keyboard = InlineKeyboard(); keyboard.paginate(total_page, current_page, 'page_my_favorites:{number}'); keyboard.row(InlineButton('返回', 'members')); return keyboard
+
 def cr_renew_ikb():
-    exchange = '✔️' if _open.exchange else '❌'
-    use_whitelist_code = '✔️' if _open.use_whitelist_code else '❌'
     keyboard = InlineKeyboard(row_width=2)
-    keyboard.add(InlineButton(f'{exchange} 兑换注册/续期码', f'set_renew-exchange'),
-                 InlineButton(f'{use_whitelist_code} 白名单码', f'set_renew-use_whitelist_code')
-                 )
-    keyboard.row(InlineButton(f'◀ 返回', 'manage'))
+    keyboard.add(InlineButton(f'续期码: {"开" if _open.exchange else "关"}', 'set_renew-exchange'), InlineButton(f'白名单码: {"开" if _open.use_whitelist_code else "关"}', 'set_renew-use_whitelist_code'))
+    keyboard.row(InlineButton('返回', 'manage'))
     return keyboard
 
-""" config_panel ↓"""
-
+def shop_config_ikb() -> InlineKeyboardMarkup:
+    return ikb([[('切换启用', 'shop_toggle'), ('重置 API Key', 'shop_reset_key')],
+                [('重置 API Secret', 'shop_reset_secret')],
+                [('返回', 'manage')]])
 
 def config_preparation() -> InlineKeyboardMarkup:
-    mp_set = '✅' if moviepilot.status else '❎'
-    auto_up = '✅' if auto_update.status else '❎'
-    leave_ban = '✅' if _open.leave_ban else '❎'
-    fuxx_pt = '✅' if fuxx_pitao else '❎'
-    keyboard = ikb(
-        [[('📄 导出日志', 'log_out'), ('📌 设置探针', 'set_tz')],
-         [('🎬 显/隐指定库', 'set_block'), (f'{fuxx_pt} 皮套人过滤功能', 'set_fuxx_pitao')],
-         [('💠 普通用户线路', 'set_line'),('🌟 白名单线路', 'set_whitelist_line')],
-         [('📡 客户端过滤', 'set_client_filter')],
-         [(f'{leave_ban} 退群封禁', 'leave_ban')],
-         [(f'{auto_up} 自动更新bot', 'set_update'), (f'{mp_set} Moviepilot点播', 'set_mp')],
-            [('🎟️ 分区通行码', 'partition_code_panel')],
-         [(f'设置赠送资格天数({config.kk_gift_days}天)', 'set_kk_gift_days'), (f'设置活跃检测天数({config.activity_check_days}天)', 'set_activity_check_days')],
-         [(f'设置封存账号天数({config.freeze_days}天)', 'set_freeze_days')],
-         [('🔙 返回', 'manage')]])
-    return keyboard
+    mp_set = '已开启' if moviepilot.status else '已关闭'
+    auto_up = '已开启' if auto_update.status else '已关闭'
+    leave_ban = '已开启' if _open.leave_ban else '已关闭'
+    fuxx_pt = '已开启' if fuxx_pitao else '已关闭'
+    return ikb([[('导出日志', 'log_out'), ('设置探针', 'set_tz')], [('普通用户线路', 'set_line'), ('白名单线路', 'set_whitelist_line')], [('客户端过滤', 'set_client_filter')], [(f'{leave_ban} 退群封禁', 'leave_ban')], [(f'{auto_up} 自动更新bot', 'set_update'), (f'{mp_set} Moviepilot点播', 'set_mp')], [(f'设置活跃检测天数({config.activity_check_days}天)', 'set_activity_check_days')], [(f'设置封存账号天数({config.freeze_days}天)', 'set_freeze_days')], [('返回', 'manage')]])
 
-
-def client_filter_panel() -> InlineKeyboardMarkup:
-    cf_enabled = '✅' if config.client_filter_enabled else '❎'
-    cf_mode_text = '🔲 黑名单模式' if config.client_filter_mode == 'blacklist' else '🔳 白名单模式'
-    keyboard = ikb([
-        [(f'{cf_enabled} 客户端过滤', 'toggle_client_filter'), (f'{cf_mode_text}', 'set_client_filter_mode')],
-        [('🔙 返回', 'back_config')]
-    ])
-    return keyboard
-
-
-back_config_p_ikb = ikb([[("🎮  ️返回主控", "back_config")]])
-
+back_config_p_ikb = ikb([[('返回主控', 'back_config')]])
 
 def back_set_ikb(method) -> InlineKeyboardMarkup:
-    return ikb([[("♻️ 重新设置", f"{method}"), ("🔙 返回主页", "back_config")]])
-
+    return ikb([[('重新设置', f'{method}'), ('返回主页', 'back_config')]])
 
 def try_set_buy(ls: list) -> InlineKeyboardMarkup:
-    d = [[ls], [["✅ 体验结束返回", "back_config"]]]
-    return ikb(d)
+    return ikb([[ls], [['体验结束返回', 'back_config']]])
 
-
-""" other """
-register_code_ikb = ikb([[('🎟️ 注册', 'create'), ('⭕ 取消', 'closeit')]])
-
+def client_filter_panel() -> InlineKeyboardMarkup:
+    cf_enabled = '已开启' if config.client_filter_enabled else '已关闭'
+    cf_mode_text = '黑名单模式' if config.client_filter_mode == 'blacklist' else '白名单模式'
+    return ikb([[(f'客户端过滤({cf_enabled})', 'toggle_client_filter')], [(f'模式({cf_mode_text})', 'set_client_filter_mode')], [('返回', 'back_config')]])
 
 async def cr_kk_ikb(uid, first):
-    text = ''
-    text1 = ''
-    keyboard = []
     data = await members_info(uid)
     if data is None:
-        text += f'**· 🆔 TG** ：[{first}](tg://user?id={uid}) [`{uid}`]\n数据库中没有此ID。ta 还没有私聊过我'
-    else:
-        name, lv, ex, us, embyid = data
-        if name != '无账户信息':
-            ban = "🌟 解除禁用" if lv == "**已禁用**" else '💢 禁用账户'
-            keyboard = [[ban, f'user_ban-{uid}'], ['⚠️ 删除账户', f'closeemby-{uid}']]
-            if len(extra_emby_libs) > 0:
-                success, rep = await emby.user(emby_id=embyid)
-                if success:
-                    try:
-                        # 新版本API：使用EnabledFolders控制访问
-                        policy = rep.get("Policy", {})
-                        current_enabled_folders = policy.get("EnabledFolders", [])
-                        enable_all_folders = policy.get("EnableAllFolders", False)
-
-                        # 获取额外媒体库对应的文件夹ID
-                        extra_folder_ids = await emby.get_folder_ids_by_names(extra_emby_libs)
-
-                        # 判断额外媒体库是否显示
-                        if enable_all_folders is True:
-                            # 如果启用所有文件夹，额外媒体库是显示的,显示关闭按钮
-                            libs, embyextralib = ['关闭', f'embyextralib_block-{uid}']
-                        elif extra_folder_ids and len(extra_folder_ids) > 0:
-                            # 检查额外媒体库的文件夹ID是否都在启用列表中
-                            if all(folder_id in current_enabled_folders for folder_id in extra_folder_ids):
-                                # 额外媒体库已启用，显示关闭按钮
-                                libs, embyextralib = ['关闭', f'embyextralib_block-{uid}']
-                            else:
-                                # 额外媒体库未启用，显示开启按钮
-                                libs, embyextralib = ['开启', f'embyextralib_unblock-{uid}']
-                        else:
-                            # 如果无法获取额外媒体库的文件夹ID，默认显示为未启用状态
-                            libs, embyextralib = ['关闭', f'embyextralib_block-{uid}']
-                        keyboard.append([f'{libs} 额外媒体库', embyextralib])
-                    except Exception as e:
-                        # 如果获取策略信息失败，默认显示为未启用状态
-                        LOGGER.error(f"获取额外媒体库状态失败: {str(e)}")
-                        keyboard.append([f'关闭额外媒体库', f'embyextralib_block-{uid}'])
-            try:
-                rst = await emby.emby_cust_commit(emby_id=embyid, days=30)
-                last_time = rst[0][0]
-                toltime = rst[0][1]
-                text1 = f"**· 🔋 上次活动** | {last_time.split('.')[0]}\n" \
-                        f"**· 📅 过去30天** | {toltime} 分钟"
-            except (TypeError, IndexError, ValueError):
-                text1 = f"**· 📅 过去30天未有记录**"
-        else:
-            keyboard.append(['✨ 赠送资格', f'gift-{uid}'])
-        text += f"**· 🍉 TG&名称** | [{first}](tg://user?id={uid})\n" \
-                f"**· 🍒 识别のID** | `{uid}`\n" \
-                f"**· 🍓 当前状态** | {lv}\n" \
-                f"**· ⏳ 剩余天数** | {us}\n" \
-                f"**· 💠 账号名称** | {name}\n" \
-                f"**· 🚨 到期时间** | **{ex}**\n"
-        text += text1
-        keyboard.extend([['🚫 踢出并封禁', f'fuckoff-{uid}'], ['❌ 删除消息', f'closeit']])
-        lines = array_chunk(keyboard, 2)
-        keyboard = ikb(lines)
-    return text, keyboard
-
+        return f'**TG**：[{first}](tg://user?id={uid}) [`{uid}`]\n数据库中没有此ID。', ikb([])
+    name, lv, ex, embyid = data
+    text = f'**TG&名称** | [{first}](tg://user?id={uid})\n**识别ID** | `{uid}`\n**当前状态** | {lv}\n**账号名称** | {name}\n**到期时间** | **{ex}**'
+    buttons = []
+    if embyid:
+        ban = '解除禁用' if lv == '**已禁用**' else '禁用账户'
+        buttons = [[ban, f'user_ban-{uid}'], ['删除账户', f'closeemby-{uid}']]
+        try:
+            result = await emby.emby_cust_commit(emby_id=embyid, days=30)
+            text += f"\\n**上次活动** | {result[0][0].split('.')[0]}\\n**过去30天** | {result[0][1]} 分钟"
+        except (TypeError, IndexError, ValueError):
+            text += '\\n**过去30天未有记录**'
+    buttons.extend([['踢出并封禁', f'fuckoff-{uid}'], ['删除消息', 'closeit']])
+    return text, ikb(array_chunk(buttons, 2))
 
 def uinfo_ikb(embyid, lv=None):
-    row1 = []
-    row2 = []
-    if lv == 'c':
-        row1.append(('✅ 启用账户', f'uinfo_enable-{embyid}'))
-    elif lv in ('a', 'b'):
-        row1.append(('🚫 禁用账户', f'uinfo_disable-{embyid}'))
-    if lv != 'd':
-        row1.append(('🌏 播放查询', f'userip-{embyid}'))
-        row2 = [('🗑️ 删除账户', f'uinfo_delete-{embyid}')]
-    row2.append(('❌ 关闭', 'closeit'))
+    rows = []
+    if lv == 'c': rows.append([('启用账户', f'uinfo_enable-{embyid}')])
+    elif lv in ('a', 'b'): rows.append([('禁用账户', f'uinfo_disable-{embyid}')])
+    if lv != 'd': rows.append([('播放查询', f'userip-{embyid}'), ('删除账户', f'uinfo_delete-{embyid}')])
+    rows.append([('关闭', 'closeit')]); return ikb(rows)
 
-    return ikb([row1, row2])
-
-
-def uinfo_delete_confirm_ikb(embyid):
-    return ikb([
-        [('⚠️ 确认删除', f'uinfo_delete_confirm-{embyid}'), ('🔙 取消', f'uinfo_delete_cancel-{embyid}')]
-    ])
-
-
-def gog_rester_ikb(link=None) -> InlineKeyboardMarkup:
-    link_ikb = ikb([[('🎁 点击领取', link, 'url')]]) if link else ikb([[('👆🏻 点击注册', f't.me/{bot_name}', 'url')]])
-    return link_ikb
-
-
-""" sched_panel ↓"""
-
+def uinfo_delete_confirm_ikb(embyid): return ikb([[('确认删除', f'uinfo_delete_confirm-{embyid}'), ('取消', f'uinfo_delete_cancel-{embyid}')]])
 
 def sched_buttons():
-    dayrank = '✅' if schedall.dayrank else '❎'
-    weekrank = '✅' if schedall.weekrank else '❎'
-    dayplayrank = '✅' if schedall.dayplayrank else '❎'
-    weekplayrank = '✅' if schedall.weekplayrank else '❎'
-    check_ex = '✅' if schedall.check_ex else '❎'
-    low_activity = '✅' if schedall.low_activity else '❎'
-    backup_db = '✅' if schedall.backup_db else '❎'
-    partition_check = '✅' if getattr(schedall, 'partition_check', True) else '❎'
-    keyboard = InlineKeyboard(row_width=2)
-    keyboard.add(InlineButton(f'{dayrank} 播放日榜', f'sched-dayrank'),
-                 InlineButton(f'{weekrank} 播放周榜', f'sched-weekrank'),
-                 InlineButton(f'{dayplayrank} 观影日榜', f'sched-dayplayrank'),
-                 InlineButton(f'{weekplayrank} 观影周榜', f'sched-weekplayrank'),
-                 InlineButton(f'{check_ex} 到期保号', f'sched-check_ex'),
-                 InlineButton(f'{low_activity} 活跃保号', f'sched-low_activity'),
-                 InlineButton(f'{backup_db} 自动备份数据库', f'sched-backup_db'),
-                 InlineButton(f'{partition_check} 分区授权检查', f'sched-partition_check')
-                 )
-    keyboard.row(InlineButton(f'🫧 返回', 'manage'))
-    return keyboard
-
-
-""" Request_media """
-
-# request_tips_ikb = ikb([[('✔️ 已转向私聊求片', 'go_to_qiupian')]])
+    statuses = [('播放日榜', 'dayrank'), ('播放周榜', 'weekrank'), ('观影日榜', 'dayplayrank'), ('观影周榜', 'weekplayrank'), ('到期保号', 'check_ex'), ('活跃保号', 'low_activity'), ('自动备份数据库', 'backup_db')]
+    return ikb([[('开' if getattr(schedall, attr) else '关', f'sched-{attr}') for _, attr in statuses], [('返回', 'manage')]])
 
 request_tips_ikb = None
 
-
 def get_resource_ikb(download_name: str):
-    # 翻页 + 下载此片 + 取消操作
-    return ikb([[(f'下载本片', f'download_{download_name}'), ('激活订阅', f'submit_{download_name}')],
-                [('❌ 关闭', 'closeit')]])
-re_download_center_ikb = ikb([
-    [('🍿 点播', 'get_resource'), ('📶 下载进度', 'download_rate')],
-    [('🔙 返回', 'members')]])
-continue_search_ikb = ikb([
-    [('🔄 继续搜索', 'continue_search'), ('❌ 取消搜索', 'cancel_search')],
-    [('🔙 返回', 'download_center')]
-])
+    return ikb([[(f'下载本片', f'download_{download_name}'), ('激活订阅', f'submit_{download_name}')], [('关闭', 'closeit')]])
+
+re_download_center_ikb = ikb([[('点播', 'get_resource'), ('下载进度', 'download_rate')], [('返回', 'members')]])
+continue_search_ikb = ikb([[('继续搜索', 'continue_search'), ('取消搜索', 'cancel_search')], [('返回', 'download_center')]])
+
 def download_resource_ids_ikb(resource_ids: list):
-    buttons = []
-    row = []
+    rows = []
     for i in range(0, len(resource_ids), 2):
-        current_id = resource_ids[i]
-        current_button = [f"资源编号: {current_id}", f'download_resource_id_{current_id}']
-        if i + 1 < len(resource_ids):
-            next_id = resource_ids[i + 1]
-            next_button = [f"资源编号: {next_id}", f'download_resource_id_{next_id}']
-            row.append([current_button, next_button])
-        else:
-            row.append([current_button])
-    buttons.extend(row)
-    buttons.append([('❌ 取消', 'cancel_download')])
-    return ikb(buttons)
+        row = [[f'资源编号: {resource_ids[i]}', f'download_resource_id_{resource_ids[i]}']]
+        if i + 1 < len(resource_ids): row.append([f'资源编号: {resource_ids[i + 1]}', f'download_resource_id_{resource_ids[i + 1]}'])
+        rows.append(row)
+    rows.append([('取消', 'cancel_download')])
+    return ikb(rows)
+
 def request_record_page_ikb(has_prev: bool, has_next: bool):
     buttons = []
-    if has_prev:
-        buttons.append(('< 上一页', 'request_record_prev'))
-    if has_next:
-        buttons.append(('下一页 >', 'request_record_next'))
-    return ikb([buttons, [('🔙 返回', 'download_center')]])
+    if has_prev: buttons.append(('< 上一页', 'request_record_prev'))
+    if has_next: buttons.append(('下一页 >', 'request_record_next'))
+    return ikb([buttons, [('返回', 'download_center')]])
+
 def mp_search_page_ikb(has_prev: bool, has_next: bool, page: int):
     buttons = []
-    if has_prev:
-        buttons.append(('< 上一页', 'mp_search_prev_page'))
-    if has_next:
-        buttons.append(('下一页 >', 'mp_search_next_page'))
-    return ikb([buttons, [('💾 选择下载', 'mp_search_select_download'), ('❌ 取消搜索', 'cancel_search')]])
+    if has_prev: buttons.append(('< 上一页', 'mp_search_prev_page'))
+    if has_next: buttons.append(('下一页 >', 'mp_search_next_page'))
+    return ikb([buttons, [('选择下载', 'mp_search_select_download'), ('取消搜索', 'cancel_search')]])
 
-# 添加 MoviePilot 设置按钮
 def mp_config_ikb():
-    """MoviePilot 设置面板按钮"""
-    mp_status = '✅' if moviepilot.status else '❎'
-    lv_text = '无'
-    if moviepilot.lv == 'a':
-        lv_text = '白名单'
-    elif moviepilot.lv == 'b':
-        lv_text = '普通用户'
-    keyboard = ikb([
-        [(f'{mp_status} 点播功能', 'set_mp_status')],
-        [('👥 设置用户权限', 'set_mp_lv')],
-        [('📝 设置日志频道', 'set_mp_log_channel')],
-        [('🔙 返回', 'back_config')]
-    ])
-    return keyboard
+    status = '开' if moviepilot.status else '关'
+    lv = {'a': '白名单', 'b': '普通用户'}.get(moviepilot.lv, '无')
+    return ikb([[ (f'点播功能: {status}', 'set_mp_status')], [('设置用户权限', 'set_mp_lv')], [('设置日志频道', 'set_mp_log_channel')], [('返回', 'back_config')]])

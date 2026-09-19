@@ -102,25 +102,25 @@ async def log_blocked_request(
         lv_display = {'a': '白名单', 'b': '普通用户', 'c': '封禁用户', 'd': '未注册'}.get(user_lv, '未知')
         action_list = []
         if terminate_success:
-            action_list.append("✅ 已终止会话")
+            action_list.append("已终止会话")
         elif terminate_success is False and session_id:
-            action_list.append("❌ 终止会话失败")
+            action_list.append("终止会话失败")
         if block_success:
-            action_list.append("✅ 已封禁用户")
+            action_list.append("已封禁用户")
         action = " | ".join(action_list) if action_list else "仅记录，未采取行动"
         log_message = (
-            f"🚫 拦截非法客户端\n"
+            f"拦截非法客户端\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"👤 用户: {user_name or 'Unknown'}\n"
-            f"🆔 Emby ID: {user_id or 'Unknown'}\n"
-            f"📱 TG ID: {f'[{tg_id}](tg://user?id={tg_id})' if tg_id else 'Unknown'}\n"
-            f"🏷️ 用户等级: {lv_display}\n"
+            f"用户: {user_name or 'Unknown'}\n"
+            f"Emby ID: {user_id or 'Unknown'}\n"
+            f"TG ID: {f'[{tg_id}](tg://user?id={tg_id})' if tg_id else 'Unknown'}\n"
+            f"用户等级: {lv_display}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"📺 客户端: {client_name or 'Unknown'}\n"
-            f"🔑 会话ID: {session_id or 'Unknown'}\n"
+            f"客户端: {client_name or 'Unknown'}\n"
+            f"会话ID: {session_id or 'Unknown'}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"🚨 处理措施: {action}\n"
-            f"⏰ 时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"处理措施: {action}\n"
+            f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
         LOGGER.warning(log_message)

@@ -13,6 +13,7 @@ from .webhook.client_filter import router as client_filter_router
 from .webhook.line_report import router as line_report_router
 from .user_info import route as user_info_route
 from .login import router as login_router
+from .shop import router as shop_router
 from bot import bot_token, LOGGER
 
 emby_api_route = APIRouter(prefix="/emby", tags=["对接Emby的接口"])
@@ -63,4 +64,5 @@ auth_api_route.include_router(
     login_router,
     dependencies=[Depends(verify_token)]
 )
+shop_api_route = shop_router
 

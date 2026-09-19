@@ -32,7 +32,7 @@ async def get_user_input(msg):
     if not e:
         e2 = sql_get_emby2(name=b)
         if not e2:
-            await sendMessage(msg, f"♻️ 未检索到Emby {b}，请确认重试或手动检查。")
+            await sendMessage(msg, f"未检索到Emby {b}，请确认重试或手动检查。")
             return None, None, None, None
         e = e2
         stats = 1
@@ -45,9 +45,9 @@ async def renew_user(_, msg):
     days, e, stats, gm_name = await get_user_input(msg)
     if not e:
         return await sendMessage(msg,
-                                 f"🔔 **使用格式：**\n\n/renew [Emby账户名] [+/-天数]\n或回复某人 /renew [+/-天数]",
+                                 f"**使用格式：**\n\n/renew [Emby账户名] [+/-天数]\n或回复某人 /renew [+/-天数]",
                                  timer=60)
-    reply = await msg.reply(f"🍓 正在处理ing···/·")
+    reply = await msg.reply(f"正在处理...")
     try:
         name = f'[{e.name}]({e.tg})' if e.tg else e.name
     except:
@@ -60,12 +60,12 @@ async def renew_user(_, msg):
     lv = e.lv
     # 非TG账户仅作用于主服，TG账户同步全部服务器
     target_tg = None if stats == 1 else e.tg
-    # 无脑 允许播放
+    # 未到期，允许播放
     if ex_new > Now:
         lv = 'a' if e.lv == 'a' else 'b'
         await emby_policy_all(tg=target_tg, embyid=e.embyid, disable=False)
 
-    # 没有白名单就寄
+    # 已到期且无白名单则禁用
     elif ex_new < Now:
         if e.lv == 'a':
             pass
@@ -80,8 +80,8 @@ async def renew_user(_, msg):
         sql_update_emby(Emby.tg == e.tg, ex=ex_new, lv=lv)
 
     i = await reply.edit(
-        f'🍒 __ {gm_name} 已调整 emby 用户 {name} 到期时间 {days} 天 (以当前时间计)__'
-        f'\n📅 实时到期：{ex_new.strftime("%Y-%m-%d %H:%M:%S")}')
+        f'__ {gm_name} 已调整 emby 用户 {name} 到期时间 {days} 天 (以当前时间计)__'
+        f'\n实时到期：{ex_new.strftime("%Y-%m-%d %H:%M:%S")}')
     try:
         await i.forward(e.tg)
     except:

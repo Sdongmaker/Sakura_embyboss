@@ -32,7 +32,7 @@ async def login_account(_, msg):
         if not result:
             await send.edit(
                 '创建失败，原因可能如下：\n\n'
-                '❎ 已有此账户名，请重新输入注册\n'
+                '❎ 已有此账户名，请更换用户名重试\n'
                 '❔ __emby服务器未知错误！！！请自行排查服务器__\n\n'
                 ' 会话已结束！')
             LOGGER.error("【创建非tg账户】未知错误，检查是否重复id %s 或 emby状态" % name)

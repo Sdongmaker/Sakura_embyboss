@@ -11,8 +11,8 @@ import errno
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from .api import emby_api_route, user_api_route, auth_api_route
-from bot import api as config_api, LOGGER
+from .api import emby_api_route, user_api_route, auth_api_route, shop_api_route
+from bot import api as config_api, LOGGER, config
 
 
 class Web:
@@ -37,6 +37,7 @@ class Web:
         self.app.include_router(emby_api_route)
         self.app.include_router(user_api_route)
         self.app.include_router(auth_api_route)
+        self.app.include_router(shop_api_route)
         # 配字 CORS 的中间件
         self.app.add_middleware(
             CORSMiddleware,
@@ -49,15 +50,19 @@ class Web:
         """
         启动 Web API 服务。
         """
-        if not config_api.status:
+        shop_enabled = bool(getattr(getattr(config, "shop", None), "enabled", False))
+        if not config_api.status and not shop_enabled:
             LOGGER.info("【API服务】未配置，跳过...")
             return
-        LOGGER.info("【API服务】检测有配置，马上启动服务...")
+        LOGGER.info("【API服务】检测到配置，正在启动服务...")
         import uvicorn
 
         self.init_api()
+        shop = getattr(config, "shop", None)
+        host = getattr(shop, "listen_host", None) if shop_enabled else config_api.http_url
+        port = getattr(shop, "listen_port", None) if shop_enabled else config_api.http_port
         self.web_api = uvicorn.Server(
-            config=uvicorn.Config(self.app, host=config_api.http_url, port=config_api.http_port)
+            config=uvicorn.Config(self.app, host=host, port=port)
         )
         server_config = self.web_api.config
         if not server_config.loaded:
@@ -68,10 +73,10 @@ class Web:
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
                 LOGGER.error(f"【API服务】端口 {config_api.http_port} 被占用，请修改配置文件.")
-            LOGGER.error("【API服务】启动失败，退出ing...")
+            LOGGER.error(f"【API服务】启动失败，正在退出...")
             raise SystemExit from None
         if self.web_api.should_exit:
-            LOGGER.error("【API服务】启动失败，退出ing...")
+            LOGGER.error("【API服务】启动失败，正在退出...")
             raise SystemExit from None
 
         LOGGER.info("【API服务】 启动成功!")

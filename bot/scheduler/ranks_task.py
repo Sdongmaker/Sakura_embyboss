@@ -86,14 +86,14 @@ async def day_ranks(pin_mode=True):
         pass
     payload = ""
     if movies:
-        tmp = "**▎电影:**\n\n"
+        tmp = "**电影:**\n\n"
         for i, movie in enumerate(movies[:10]):
             user_id, item_id, item_type, name, count, duarion = tuple(movie)
             time = await convert_s(int(duarion))
             tmp += str(i + 1) + ". " + name + "\n播放次数: " + str(count) + "  时长:" + time + "\n"
         payload = tmp
     if tvs:
-        tmp = "\n**▎电视剧:**\n\n"
+        tmp = "\n**电视剧:**\n\n"
         for i, tv in enumerate(tvs[:10]):
             user_id, item_id, item_type, name, count, duarion = tuple(tv)
             time = await convert_s(int(duarion))
@@ -141,14 +141,14 @@ async def week_ranks(pin_mode=True):
     
     payload = ""
     if movies:
-        tmp = "**▎电影:**\n\n"
+        tmp = "**电影:**\n\n"
         for i, movie in enumerate(movies[:10]):
             user_id, item_id, item_type, name, count, duarion = tuple(movie)
             time = await convert_s(int(duarion))
             tmp += str(i + 1) + ". " + name + "\n播放次数: " + str(count) + "  时长:" + time + "\n"
         payload = tmp
     if tvs:
-        tmp = "\n**▎电视剧:**\n\n"
+        tmp = "\n**电视剧:**\n\n"
         for i, tv in enumerate(tvs[:10]):
             user_id, item_id, item_type, name, count, duarion = tuple(tv)
             time = await convert_s(int(duarion))

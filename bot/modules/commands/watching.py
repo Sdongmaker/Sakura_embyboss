@@ -19,19 +19,19 @@ async def watching_command(_, message: Message):
     watching / playing 命令 - 查看当前播放状态（不显示用户名、设备名）
     """
     await deleteMessage(message)
-    processing_msg = await message.reply("📊 正在获取 Emby 服务器当前状态...")
+    processing_msg = await message.reply("正在获取 Emby 服务器当前状态...")
 
     try:
         # 发送请求获取活跃会话
         result = await emby._request("GET", "/emby/Sessions")
 
         if not result.success:
-            error_text = f"**Emby 服务器状态：🔴 OFFLINE**\n\n**错误原因:** {'连接超时或未知错误'}\n请检查 Emby 服务状态或网络配置。"
+            error_text = f"**Emby 服务器状态：OFFLINE**\n\n**错误原因:** {'连接超时或未知错误'}\n请检查 Emby 服务状态或网络配置。"
             await processing_msg.edit_text(error_text)
             return
 
         if result.data is None:
-            await processing_msg.edit_text("❌ **获取播放数据失败:** 服务器返回空数据")
+            await processing_msg.edit_text("**获取播放数据失败:** 服务器返回空数据")
             return
 
         # 统计播放信息与在线人数
@@ -52,10 +52,10 @@ async def watching_command(_, message: Message):
         total_playing = len(playing_sessions)
 
         # 构建报告文本
-        report = "📊 **Emby 服务器当前状态**\n\n"
-        report += "🟢 **服务器状态:** ONLINE\n"
-        report += f"👥 **当前在线人数:** `{total_online}` 人\n"
-        report += f"🎬 **当前播放会话:** `{total_playing}` 个\n\n"
+        report = "**Emby 服务器当前状态**\n\n"
+        report += "**服务器状态:** ONLINE\n"
+        report += f"**当前在线人数:** `{total_online}` 人\n"
+        report += f"**当前播放会话:** `{total_playing}` 个\n\n"
 
         if total_playing == 0:
             report += "当前没有用户在观看媒体。"
@@ -63,7 +63,7 @@ async def watching_command(_, message: Message):
             return
 
         # 详细播放列表（完全隐藏用户名、设备名和 IP）
-        report += "📝 **当前播放影片列表:**\n"
+        report += "**当前播放影片列表:**\n"
         for idx, session in enumerate(playing_sessions, 1):
 
             # 播放媒体信息
@@ -84,20 +84,20 @@ async def watching_command(_, message: Message):
             # 中文翻译媒体类型
             media_type_cn = "未知"
             if media_type == "Movie":
-                media_type_cn = "电影 🎬"
+                media_type_cn = "电影"
             elif media_type == "Episode":
-                media_type_cn = "剧集 📺"
+                media_type_cn = "剧集"
             elif media_type == "Audio":
-                media_type_cn = "音乐 🎵"
+                media_type_cn = "音乐"
             else:
-                media_type_cn = f"{media_type} 🎥"
+                media_type_cn = media_type
 
             # 是否暂停
             play_state = session.get("PlayState", {})
             is_paused = play_state.get("IsPaused", False)
-            status_tag = "⏸️ 已暂停" if is_paused else "▶️ 播放中"
+            status_tag = "已暂停" if is_paused else "播放中"
 
-            report += f"{idx}. 🎬 影片: `{name}`\n"
+            report += f"{idx}. 影片: `{name}`\n"
             report += (
                 f"    类型: {media_type_cn} | 状态: {status_tag}\n"
             )
@@ -110,4 +110,4 @@ async def watching_command(_, message: Message):
                 await message.reply(extra_report)
 
     except Exception as e:
-        await processing_msg.edit_text(f"❌ **发生未知错误:** {str(e)}")
+        await processing_msg.edit_text(f"**发生未知错误:** {str(e)}")

@@ -292,6 +292,6 @@ def draw_text_psd_style(draw, xy, text, font, tracking=0, leading=None, align='l
 
 
 # if __name__ == "__main__":
-#     draw = RanksDraw(embyname='SAKURA欢迎你', weekly=True, backdrop=False)
+#     draw = RanksDraw(embyname='SAKURA', weekly=True, backdrop=False)
 #     draw.test()
 #     draw.save()

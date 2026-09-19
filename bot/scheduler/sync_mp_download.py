@@ -63,7 +63,7 @@ async def sync_download_tasks():
                 if transfer_state is not None:
                     if transfer_state:
                         try:
-                            await bot.send_message(chat_id=record.tg, text = f"💯恭喜您点播的「{record.request_name}」已成功入库！")
+                            await bot.send_message(chat_id=record.tg, text = f"您点播的「{record.request_name}」已成功入库")
                         except Exception as e:
                             LOGGER.error(f"[MoviePilot] 发送通知到{record.tg}失败: {str(e)}")
                     sql_update_request_status(
